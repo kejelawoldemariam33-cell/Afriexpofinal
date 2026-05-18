@@ -1,0 +1,2390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AfriExpo — Africa's Digital Trade Platform</title>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    (function() {
+      try {
+        var firebaseConfig = {
+          apiKey: "AIzaSyBCXn8MAsNVzmf3iUFfSUOmoaGXn6IdAC4",
+          authDomain: "afriexpo-90276.firebaseapp.com",
+          projectId: "afriexpo-90276",
+          storageBucket: "afriexpo-90276.firebasestorage.app",
+          messagingSenderId: "925710375844",
+          appId: "1:925710375844:web:e97af3556666d54515ff31"
+        };
+        firebase.initializeApp(firebaseConfig);
+        var auth = firebase.auth();
+        var db = firebase.firestore();
+        window._auth = auth;
+        window._db = db;
+        window._googleProvider = new firebase.auth.GoogleAuthProvider();
+        window._ts = firebase.firestore.FieldValue.serverTimestamp;
+        window._fbReady = true;
+        window.dispatchEvent(new Event("fb-ready"));
+      } catch(e) {
+        console.warn("Firebase init failed:", e);
+        window._fbReady = true;
+        window.dispatchEvent(new Event("fb-ready"));
+      }
+    })();
+  </script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback, useRef, createContext, useContext } = React;
+
+// ─── Design tokens ───────────────────────────────────────────
+const S = `
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',system-ui,sans-serif;background:#0a0806;color:#f5f0e8;min-height:100vh;-webkit-font-smoothing:antialiased}
+  ::-webkit-scrollbar{width:4px;height:4px}
+  ::-webkit-scrollbar-track{background:#130D02}
+  ::-webkit-scrollbar-thumb{background:#8A4900;border-radius:2px}
+  ::selection{background:#FF9A1A;color:#0a0806}
+  input,select,textarea{font-family:inherit}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;border-radius:8px;font-weight:600;font-size:14px;cursor:pointer;transition:all .2s;border:none;text-decoration:none}
+  .btn-p{background:#FF9A1A;color:#0a0806}.btn-p:hover{background:#FFB84D}
+  .btn-o{background:transparent;border:1.5px solid #FF9A1A;color:#FF9A1A}.btn-o:hover{background:#FF9A1A;color:#0a0806}
+  .btn-g{background:transparent;border:1.5px solid #45300D;color:#B89660}.btn-g:hover{border-color:#8A4900;color:#FFB84D}
+  .btn-d{background:transparent;border:1.5px solid #7f1d1d;color:#fca5a5}.btn-d:hover{background:#7f1d1d}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .card{background:rgba(19,13,2,.6);border:1px solid rgba(69,48,13,.5);border-radius:16px;backdrop-filter:blur(12px)}
+  .cardh{transition:border-color .2s,transform .2s}.cardh:hover{border-color:rgba(138,73,0,.6);transform:translateY(-1px)}
+  .inp{background:rgba(19,13,2,.8);border:1px solid rgba(97,69,24,.5);color:#f5f0e8;padding:10px 14px;border-radius:8px;width:100%;font-size:14px;transition:border-color .2s;outline:none}
+  .inp::placeholder{color:#7D5C28}.inp:focus{border-color:#FF9A1A}
+  .tag{background:rgba(46,24,0,.6);border:1px solid rgba(138,73,0,.4);color:#FFB84D;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;display:inline-block}
+  .blive{background:rgba(6,78,59,.5);border:1px solid rgba(16,185,129,.3);color:#6ee7b7;font-size:11px;padding:3px 10px;border-radius:20px}
+  .bup{background:rgba(46,24,0,.5);border:1px solid rgba(138,73,0,.3);color:#FFB84D;font-size:11px;padding:3px 10px;border-radius:20px}
+  .bdone{background:rgba(30,22,6,.5);border:1px solid rgba(69,48,13,.3);color:#7D5C28;font-size:11px;padding:3px 10px;border-radius:20px}
+  .tg{background:linear-gradient(135deg,#FF9A1A 0%,#FFD59A 50%,#FF9A1A 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .hbg{background:radial-gradient(ellipse 80% 60% at 20% 30%,rgba(255,154,26,.09) 0%,transparent 60%),radial-gradient(ellipse 60% 80% at 80% 70%,rgba(42,143,56,.06) 0%,transparent 60%),#0a0806}
+  .pline{height:2px;background:repeating-linear-gradient(90deg,#8A4900 0,#8A4900 4px,transparent 4px,transparent 12px,#FF9A1A 12px,#FF9A1A 16px,transparent 16px,transparent 24px)}
+  @keyframes pdot{0%,100%{opacity:1}50%{opacity:.3}}
+  .ldot{animation:pdot 1.5s ease-in-out infinite;display:inline-block;width:7px;height:7px;border-radius:50%;background:#34d399}
+  @keyframes fup{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+  .fu{animation:fup .45s ease both}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .spin{animation:spin .8s linear infinite}
+  .sh{-ms-overflow-style:none;scrollbar-width:none}.sh::-webkit-scrollbar{display:none}
+  .msgme{background:rgba(138,73,0,.45);border-radius:18px 18px 4px 18px}
+  .msgthem{background:rgba(42,28,6,.7);border-radius:18px 18px 18px 4px}
+  .sl{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:13px;font-weight:500;color:#9A7540;cursor:pointer;transition:all .15s}
+  .sl:hover{color:#FFB84D;background:rgba(46,24,0,.4)}
+  .sl.act{color:#FF9A1A;background:rgba(138,73,0,.2)}
+  @keyframes shim{0%{background-position:-200% 0}100%{background-position:200% 0}}
+  .shim{background:linear-gradient(90deg,transparent 25%,rgba(255,154,26,.04) 50%,transparent 75%);background-size:200% 100%;animation:shim 1.8s infinite}
+  textarea.inp{resize:vertical;min-height:80px}
+`
+
+// ─── Firebase helpers ─────────────────────────────────────────
+const db = () => window._db
+const auth = () => window._auth
+const ts = () => window._ts ? window._ts() : new Date().toISOString()
+
+const col = (name) => db()?.collection(name)
+const docRef = (col, id) => db()?.collection(col).doc(id)
+const addDoc = async (colName, data) => db()?.collection(colName).add(data)
+const setDoc = async (colName, id, data) => db()?.collection(colName).doc(id).set(data)
+const getDoc = async (colName, id) => {
+  const snap = await db()?.collection(colName).doc(id).get()
+  return snap?.exists ? { id: snap.id, ...snap.data() } : null
+}
+const getDocs = async (colName, constraints = []) => {
+  let ref = db()?.collection(colName)
+  constraints.forEach(c => {
+    if (c.type === 'where') ref = ref?.where(c.f, c.op, c.v)
+    if (c.type === 'orderBy') ref = ref?.orderBy(c.f, c.dir || 'asc')
+    if (c.type === 'limit') ref = ref?.limit(c.n)
+  })
+  const snap = await ref?.get()
+  return snap?.docs.map(d => ({ id: d.id, ...d.data() })) || []
+}
+const updateDoc = async (colName, id, data) => db()?.collection(colName).doc(id).update(data)
+const deleteDoc = async (colName, id) => db()?.collection(colName).doc(id).delete()
+const onSnap = (colName, constraints, cb) => {
+  let ref = db()?.collection(colName)
+  constraints.forEach(c => {
+    if (c.type === 'where') ref = ref?.where(c.f, c.op, c.v)
+    if (c.type === 'orderBy') ref = ref?.orderBy(c.f, c.dir || 'asc')
+    if (c.type === 'limit') ref = ref?.limit(c.n)
+  })
+  return ref?.onSnapshot(snap => cb(snap?.docs.map(d => ({ id: d.id, ...d.data() })) || []))
+}
+
+// Seed platform exhibitions if not present
+async function seedExhibitions() {
+  try {
+    const existing = await getDocs('exhibitions', [{ type: 'limit', n: 1 }])
+    if (existing.length > 0) return
+    const expos = [
+      { title:"EthioExport Summit 2025", subtitle:"Africa's Premier Trade Gateway", date:"March 15–18, 2025", location:"Virtual + Addis Ababa Hybrid", category:"Multi-Sector", status:"upcoming", exhibitors:320, visitors:8500, countries:42, sectors:["Agriculture","Textiles","Manufacturing","Tech"], description:"The flagship annual B2B exhibition connecting Ethiopian exporters with global buyers.", createdAt: ts() },
+      { title:"East Africa Agri-Food Expo", subtitle:"Farm to Global Fork", date:"April 2–4, 2025", location:"Virtual — East Africa Focus", category:"Agriculture", status:"upcoming", exhibitors:180, visitors:4200, countries:28, sectors:["Coffee","Tea","Pulses","Horticulture"], description:"Dedicated agricultural trade fair connecting East Africa's top food producers with global importers.", createdAt: ts() },
+      { title:"AfriTech Innovation Forum", subtitle:"Building Africa's Digital Future", date:"February 10–12, 2025", location:"Virtual — Pan-African", category:"Technology", status:"live", exhibitors:95, visitors:3800, countries:34, sectors:["Fintech","AgriTech","HealthTech","EdTech"], description:"Africa's leading tech startup and innovation showcase. Connect with investors and enterprise buyers.", createdAt: ts() },
+      { title:"Pan-Africa Leather & Textile Expo", subtitle:"Craftsmanship Meets Commerce", date:"January 20–22, 2025", location:"Virtual — Global Reach", category:"Manufacturing", status:"completed", exhibitors:145, visitors:2900, countries:22, sectors:["Leather Goods","Apparel","Footwear"], description:"Connect Africa's world-class leather and textile manufacturers with global fashion brands.", createdAt: ts() },
+    ]
+    for (const e of expos) await addDoc('exhibitions', e)
+  } catch(e) {}
+}
+
+// ─── Small UI components ──────────────────────────────────────
+function Icon({ name, size=16, style={} }) {
+  const icons = {
+    home:"M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10",
+    expo:"M8 17l4 4 4-4m-4-5v9 M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29",
+    users:"M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75",
+    shop:"M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z M3 6h18 M16 10a4 4 0 01-8 0",
+    dollar:"M12 1v22 M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6",
+    truck:"M1 3h15v13H1z M16 8h4l3 3v5h-7V8z M5.5 21a1.5 1.5 0 100-3 1.5 1.5 0 000 3z M18.5 21a1.5 1.5 0 100-3 1.5 1.5 0 000 3z",
+    zap:"M13 2L3 14h9l-1 8 10-12h-9l1-8z",
+    chart:"M18 20V10 M12 20V4 M6 20v-6",
+    msg:"M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z",
+    bell:"M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 01-3.46 0",
+    settings:"M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z",
+    logout:"M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4 M16 17l5-5-5-5 M21 12H9",
+    search:"M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
+    check:"M20 6L9 17l-5-5",
+    x:"M18 6L6 18M6 6l12 12",
+    arrow:"M5 12h14M12 5l7 7-7 7",
+    plus:"M12 5v14M5 12h14",
+    calendar:"M3 4h18v18H3z M16 2v4 M8 2v4 M3 10h18",
+    video:"M23 7l-7 5 7 5V7z M1 5h14a1 1 0 011 1v12a1 1 0 01-1 1H1",
+    star:"M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+    shield:"M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z",
+    globe:"M12 22a10 10 0 100-20 10 10 0 000 20z M2 12h20 M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z",
+    building:"M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z M9 22V12h6v10",
+    filter:"M22 3H2l8 9.46V19l4 2v-8.54L22 3z",
+    map:"M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4z M8 2v16 M16 6v16",
+    file:"M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6",
+    edit:"M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7 M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z",
+    trash:"M3 6h18 M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2",
+    refresh:"M1 4v6h6 M23 20v-6h-6 M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15",
+    eye:"M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z M12 9a3 3 0 100 6 3 3 0 000-6z",
+    award:"M12 15a7 7 0 100-14 7 7 0 000 14z M8.21 13.89L7 23l5-3 5 3-1.21-9.12",
+    package:"M16.5 9.4l-9-5.19M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 001 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12",
+    layers:"M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5",
+    send:"M22 2L11 13 M22 2l-7 20-4-9-9-4 20-7z",
+  }
+  const d = icons[name] || icons.x
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={style}>
+      {d.split(" M").map((seg,i) => <path key={i} d={i===0?seg:"M"+seg} />)}
+    </svg>
+  )
+}
+
+const Spin = ({size=16}) => <div className="spin" style={{width:size,height:size,border:`2px solid rgba(255,154,26,.2)`,borderTopColor:"#FF9A1A",borderRadius:"50%"}} />
+
+function Av({ name="U", color="#92400e", size=36 }) {
+  const initials = name.split(" ").map(w=>w[0]||"").join("").slice(0,2).toUpperCase() || "U"
+  return <div style={{width:size,height:size,borderRadius:size/2,background:color,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontWeight:700,fontSize:size*.38,flexShrink:0}}>{initials}</div>
+}
+
+function Badge({ status }) {
+  if (status==="live") return <span className="blive">● Live</span>
+  if (status==="upcoming") return <span className="bup">Upcoming</span>
+  return <span className="bdone">Completed</span>
+}
+
+function Stars({ rating=0, reviews }) {
+  return (
+    <div style={{display:"flex",alignItems:"center",gap:4}}>
+      {[1,2,3,4,5].map(i=>(
+        <svg key={i} width="12" height="12" viewBox="0 0 24 24" fill={i<=Math.floor(rating)?"#FF9A1A":"none"} stroke="#FF9A1A" strokeWidth="2">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      ))}
+      <span style={{color:"#f5f0e8",fontSize:12,fontWeight:600}}>{rating}</span>
+      {reviews && <span style={{color:"#7D5C28",fontSize:11}}>({reviews})</span>}
+    </div>
+  )
+}
+
+function Bar({ pct }) {
+  return <div style={{height:6,background:"rgba(42,28,6,.8)",borderRadius:3,overflow:"hidden"}}><div style={{height:"100%",width:`${pct}%`,background:"#FF9A1A",borderRadius:3,transition:"width .6s ease"}}/></div>
+}
+
+function Tag({ children }) { return <span className="tag">{children}</span> }
+
+// ─── AUTH ─────────────────────────────────────────────────────
+function AuthPage({ onAuth }) {
+  const [mode, setMode] = useState("login")
+  const [form, setForm] = useState({ email:"", password:"", name:"", company:"", role:"exhibitor" })
+  const [err, setErr] = useState("")
+  const [loading, setLoading] = useState(false)
+  const set = (k,v) => setForm(f=>({...f,[k]:v}))
+
+  const errMap = {
+    "auth/email-already-in-use":"An account with this email already exists.",
+    "auth/invalid-email":"Please enter a valid email address.",
+    "auth/weak-password":"Password must be at least 6 characters.",
+    "auth/user-not-found":"No account found with this email.",
+    "auth/wrong-password":"Incorrect password.",
+    "auth/invalid-credential":"Invalid email or password.",
+    "auth/too-many-requests":"Too many attempts. Try again later.",
+    "auth/network-request-failed":"Network error. Check your connection.",
+  }
+
+  const submit = async () => {
+    setErr(""); setLoading(true)
+    const a = auth(); const d = db()
+    if (!a || !d) { setErr("Firebase not loaded. Please wait."); setLoading(false); return }
+    try {
+      if (mode === "login") {
+        const cred = await a.signInWithEmailAndPassword(form.email, form.password)
+        const snap = await d.collection("users").doc(cred.user.uid).get()
+        const p = snap.exists ? snap.data() : {}
+        onAuth({ id:cred.user.uid, name:p.name||cred.user.displayName||form.email.split("@")[0], email:cred.user.email, role:p.role||"visitor", company:p.company||"", avatar:p.avatar||(p.name||"U").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(), verified:p.verified||false, country:p.country||"", bio:p.bio||"", phone:p.phone||"", website:p.website||"", category:p.category||"", products:p.products||[], tags:p.tags||[], description:p.description||"", seeking:p.seeking||"" })
+      } else {
+        if (!form.name||!form.email||!form.password) { setErr("All fields are required"); setLoading(false); return }
+        if (form.password.length<6) { setErr("Password must be at least 6 characters"); setLoading(false); return }
+        const cred = await a.createUserWithEmailAndPassword(form.email, form.password)
+        await cred.user.updateProfile({ displayName: form.name })
+        const av = form.name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()
+        const prof = { id:cred.user.uid, name:form.name, email:form.email, role:form.role, company:form.company||"", avatar:av, verified:false, country:"", bio:"", phone:"", website:"", category:"", products:[], tags:[], description:"", seeking:"", createdAt:ts() }
+        await d.collection("users").doc(cred.user.uid).set(prof)
+        onAuth({ ...prof })
+      }
+    } catch(e) { setErr(errMap[e.code]||e.message||"Something went wrong.") }
+    setLoading(false)
+  }
+
+  const googleSign = async () => {
+    setErr(""); setLoading(true)
+    const a = auth(); const d = db()
+    if (!a||!d) { setErr("Firebase not ready"); setLoading(false); return }
+    try {
+      const r = await a.signInWithPopup(window._googleProvider)
+      const snap = await d.collection("users").doc(r.user.uid).get()
+      let p = snap.exists ? snap.data() : null
+      if (!p) {
+        const av = (r.user.displayName||"U").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase()
+        p = { id:r.user.uid, name:r.user.displayName||r.user.email.split("@")[0], email:r.user.email, role:"visitor", company:"", avatar:av, verified:false, country:"", bio:"", phone:"", website:"", category:"", products:[], tags:[], description:"", seeking:"", createdAt:ts() }
+        await d.collection("users").doc(r.user.uid).set(p)
+      }
+      onAuth({ ...p, id:r.user.uid })
+    } catch(e) { if(e.code!=="auth/popup-closed-by-user") setErr(e.message) }
+    setLoading(false)
+  }
+
+  return (
+    <div className="hbg" style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <style>{S}</style>
+      <div style={{width:"100%",maxWidth:440}}>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{width:48,height:48,borderRadius:14,background:"linear-gradient(135deg,#FF9A1A,#E67E00)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 12px"}}>
+            <span style={{color:"#0a0806",fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:22}}>A</span>
+          </div>
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:800,color:"#FFD59A"}}>AfriExpo</h1>
+          <p style={{color:"#9A7540",fontSize:13,marginTop:4}}>Africa's Digital Trade Platform</p>
+        </div>
+        <div className="card fu" style={{padding:32}}>
+          <div style={{display:"flex",background:"rgba(10,8,6,.5)",borderRadius:10,padding:3,marginBottom:24}}>
+            {["login","register"].map(m=>(
+              <button key={m} onClick={()=>{setMode(m);setErr("")}} style={{flex:1,padding:8,borderRadius:8,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,transition:"all .2s",background:mode===m?"#FF9A1A":"transparent",color:mode===m?"#0a0806":"#9A7540"}}>
+                {m==="login"?"Sign In":"Create Account"}
+              </button>
+            ))}
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            {mode==="register"&&(<>
+              <div>
+                <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Full Name</label>
+                <input className="inp" value={form.name} onChange={e=>set("name",e.target.value)} placeholder="Alem Tadesse" />
+              </div>
+              <div>
+                <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Company</label>
+                <input className="inp" value={form.company} onChange={e=>set("company",e.target.value)} placeholder="Your Company Name" />
+              </div>
+              <div>
+                <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>I am a</label>
+                <select className="inp" value={form.role} onChange={e=>set("role",e.target.value)}>
+                  <option value="exhibitor">Exhibitor / Exporter</option>
+                  <option value="buyer">Buyer / Importer</option>
+                  <option value="investor">Investor</option>
+                  <option value="logistics">Logistics Partner</option>
+                  <option value="visitor">Visitor</option>
+                </select>
+              </div>
+            </>)}
+            <div>
+              <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Email</label>
+              <input className="inp" type="email" value={form.email} onChange={e=>set("email",e.target.value)} placeholder="you@company.com" />
+            </div>
+            <div>
+              <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Password</label>
+              <input className="inp" type="password" value={form.password} onChange={e=>set("password",e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&submit()} />
+            </div>
+            {err&&<div style={{background:"rgba(127,29,29,.3)",border:"1px solid rgba(252,165,165,.2)",borderRadius:8,padding:"10px 14px",color:"#fca5a5",fontSize:12}}>{err}</div>}
+            <button className="btn btn-p" onClick={submit} disabled={loading} style={{justifyContent:"center",marginTop:4}}>
+              {loading?<Spin size={14}/>:mode==="login"?"Sign In →":"Create Account →"}
+            </button>
+            {mode==="login"&&(
+              <div style={{textAlign:"center",fontSize:12,color:"#7D5C28"}}>
+                <span style={{color:"#FFB84D",cursor:"pointer"}} onClick={async()=>{
+                  if(!form.email){alert("Enter your email first");return}
+                  try{await auth()?.sendPasswordResetEmail(form.email);alert("Password reset email sent!")}catch(e){alert(e.message)}
+                }}>Forgot password?</span>
+              </div>
+            )}
+            <div style={{display:"flex",alignItems:"center",gap:10,margin:"4px 0"}}>
+              <div style={{flex:1,height:1,background:"rgba(69,48,13,.4)"}}/>
+              <span style={{color:"#614518",fontSize:11}}>or</span>
+              <div style={{flex:1,height:1,background:"rgba(69,48,13,.4)"}}/>
+            </div>
+            <button onClick={googleSign} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:10,width:"100%",padding:"10px 16px",borderRadius:8,border:"1.5px solid rgba(69,48,13,.5)",background:"rgba(19,13,2,.8)",cursor:"pointer",color:"#E8DCC8",fontSize:13,fontWeight:500}}>
+              <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.47 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+              Continue with Google
+            </button>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{flex:1,height:1,background:"rgba(69,48,13,.4)"}}/>
+              <span style={{color:"#614518",fontSize:11}}>or</span>
+              <div style={{flex:1,height:1,background:"rgba(69,48,13,.4)"}}/>
+            </div>
+            <button onClick={()=>onAuth({id:"guest",name:"Guest",email:"",role:"visitor",company:"",avatar:"G",verified:false,isGuest:true})} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:8,width:"100%",padding:"10px 16px",borderRadius:8,border:"1.5px dashed rgba(69,48,13,.5)",background:"transparent",cursor:"pointer",color:"#9A7540",fontSize:13}}>
+              Browse as Guest
+            </button>
+          </div>
+        </div>
+        <p style={{textAlign:"center",color:"#7D5C28",fontSize:12,marginTop:16}}>
+          {mode==="login"?"New to AfriExpo? ":"Already have an account? "}
+          <span style={{color:"#FF9A1A",cursor:"pointer"}} onClick={()=>{setMode(mode==="login"?"register":"login");setErr("")}}>
+            {mode==="login"?"Create account":"Sign in"}
+          </span>
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── NAVBAR ───────────────────────────────────────────────────
+function Navbar({ page, setPage, user, onLogout, notifCount, setShowNotif }) {
+  const links = [
+    {id:"exhibitions",label:"Exhibitions"},{id:"exhibitors",label:"Directory"},
+    {id:"marketplace",label:"Marketplace"},{id:"financing",label:"Financing"},
+    {id:"logistics",label:"Logistics"},{id:"matchmaking",label:"AI Match"}
+  ]
+  return (
+    <nav style={{position:"fixed",top:0,left:0,right:0,zIndex:50,background:"rgba(10,8,6,.92)",borderBottom:"1px solid rgba(69,48,13,.35)",backdropFilter:"blur(16px)"}}>
+      <div style={{maxWidth:1280,margin:"0 auto",padding:"0 24px",display:"flex",alignItems:"center",height:60,gap:20}}>
+        <button onClick={()=>setPage("home")} style={{display:"flex",alignItems:"center",gap:8,background:"none",border:"none",cursor:"pointer",flexShrink:0}}>
+          <div style={{width:32,height:32,borderRadius:9,background:"linear-gradient(135deg,#FF9A1A,#E67E00)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <span style={{color:"#0a0806",fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:16}}>A</span>
+          </div>
+          <span style={{fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:18,color:"#FFD59A"}}>AfriExpo</span>
+        </button>
+        <div style={{display:"flex",gap:2,flex:1,justifyContent:"center",overflowX:"auto"}} className="sh">
+          {links.map(l=>(
+            <button key={l.id} onClick={()=>setPage(l.id)} style={{padding:"6px 12px",borderRadius:7,border:"none",cursor:"pointer",fontSize:13,fontWeight:500,background:page===l.id?"rgba(138,73,0,.25)":"transparent",color:page===l.id?"#FF9A1A":"#9A7540",transition:"all .15s",whiteSpace:"nowrap"}}>
+              {l.label}
+            </button>
+          ))}
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+          <button onClick={()=>setShowNotif(v=>!v)} style={{position:"relative",width:36,height:36,borderRadius:8,border:"none",background:"transparent",cursor:"pointer",color:"#9A7540",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <Icon name="bell" size={17}/>
+            {notifCount>0&&<span style={{position:"absolute",top:4,right:4,width:16,height:16,background:"#FF9A1A",borderRadius:8,color:"#0a0806",fontSize:9,fontWeight:800,display:"flex",alignItems:"center",justifyContent:"center"}}>{notifCount}</span>}
+          </button>
+          <button onClick={()=>setPage("dashboard")} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 10px",borderRadius:8,border:"1px solid rgba(69,48,13,.4)",background:"transparent",cursor:"pointer"}}>
+            <Av name={user.name} color="#92400e" size={26}/>
+            <span style={{color:"#E8DCC8",fontSize:12,fontWeight:600,maxWidth:90,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{user.name?.split(" ")[0]}</span>
+          </button>
+          {user.role==="admin"&&<button onClick={()=>setPage("admin")} style={{padding:"5px 10px",borderRadius:8,border:"1px solid rgba(255,154,26,.3)",background:"rgba(255,154,26,.08)",color:"#FF9A1A",fontSize:12,fontWeight:600,cursor:"pointer"}}>Admin</button>}
+          <button onClick={onLogout} style={{width:32,height:32,borderRadius:8,border:"none",background:"transparent",cursor:"pointer",color:"#614518",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <Icon name="logout" size={15}/>
+          </button>
+        </div>
+      </div>
+    </nav>
+  )
+}
+
+// ─── NOTIFICATIONS ────────────────────────────────────────────
+function NotifPanel({ user, onClose }) {
+  const [notifs, setNotifs] = useState([])
+  const imap = { match:"zap", message:"msg", meeting:"calendar", inquiry:"package", system:"check" }
+
+  useEffect(() => {
+    if (!user?.id || user.isGuest) return
+    const unsub = onSnap("notifications",
+      [{type:"where",f:"userId",op:"==",v:user.id},{type:"orderBy",f:"createdAt",dir:"desc"},{type:"limit",n:20}],
+      docs => setNotifs(docs)
+    )
+    return () => unsub?.()
+  }, [user?.id])
+
+  const markRead = async (id) => {
+    await updateDoc("notifications", id, { read: true }).catch(()=>{})
+    setNotifs(n=>n.map(x=>x.id===id?{...x,read:true}:x))
+  }
+  const markAll = async () => {
+    for (const n of notifs.filter(x=>!x.read)) await updateDoc("notifications", n.id, {read:true}).catch(()=>{})
+    setNotifs(n=>n.map(x=>({...x,read:true})))
+  }
+  const unread = notifs.filter(n=>!n.read).length
+
+  return (
+    <div style={{position:"fixed",top:64,right:16,width:340,zIndex:60,animation:"fup .2s ease both"}}>
+      <div className="card" style={{padding:0,overflow:"hidden"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderBottom:"1px solid rgba(69,48,13,.35)"}}>
+          <span style={{fontWeight:600,color:"#E8DCC8",fontSize:14}}>Notifications {unread>0&&<span style={{color:"#FF9A1A",fontSize:12}}>({unread})</span>}</span>
+          <div style={{display:"flex",gap:8}}>
+            {unread>0&&<button onClick={markAll} style={{color:"#9A7540",fontSize:11,background:"none",border:"none",cursor:"pointer"}}>Mark all read</button>}
+            <button onClick={onClose} style={{color:"#614518",background:"none",border:"none",cursor:"pointer"}}><Icon name="x" size={14}/></button>
+          </div>
+        </div>
+        <div style={{maxHeight:360,overflowY:"auto"}}>
+          {notifs.length===0&&<div style={{padding:24,textAlign:"center",color:"#7D5C28",fontSize:13}}>No notifications yet</div>}
+          {notifs.map(n=>(
+            <div key={n.id} onClick={()=>markRead(n.id)} style={{padding:"12px 16px",borderBottom:"1px solid rgba(42,28,6,.5)",display:"flex",gap:10,cursor:"pointer",background:n.read?"transparent":"rgba(255,154,26,.03)"}}>
+              <div style={{width:32,height:32,borderRadius:8,background:"rgba(46,24,0,.6)",border:"1px solid rgba(138,73,0,.3)",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,color:"#FF9A1A"}}>
+                <Icon name={imap[n.type]||"bell"} size={14}/>
+              </div>
+              <div style={{flex:1}}>
+                <p style={{fontSize:12,color:n.read?"#9A7540":"#E8DCC8",lineHeight:1.4}}>{n.text}</p>
+                <p style={{fontSize:10,color:"#614518",marginTop:3}}>{n.time||""}</p>
+              </div>
+              {!n.read&&<div style={{width:7,height:7,borderRadius:4,background:"#FF9A1A",flexShrink:0,marginTop:4}}/>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── HOME ─────────────────────────────────────────────────────
+function HomePage({ setPage, user }) {
+  const [wi, setWi] = useState(0)
+  const [expos, setExpos] = useState([])
+  const [exhibitors, setExhibitors] = useState([])
+  const words = ["Trade","Commerce","Business","Growth","Exports"]
+
+  useEffect(()=>{ const t=setInterval(()=>setWi(i=>(i+1)%words.length),2500); return()=>clearInterval(t) },[])
+  useEffect(()=>{
+    getDocs("exhibitions",[{type:"limit",n:4}]).then(setExpos).catch(()=>{})
+    getDocs("users",[{type:"where",f:"role",op:"==",v:"exhibitor"},{type:"limit",n:6}]).then(setExhibitors).catch(()=>{})
+    seedExhibitions().then(()=>getDocs("exhibitions",[{type:"limit",n:4}]).then(setExpos).catch(()=>{}))
+  },[])
+
+  const CATS = [
+    {id:"Agriculture & Food",icon:"🌾"},{id:"Textiles & Apparel",icon:"🧵"},{id:"Manufacturing",icon:"⚙️"},
+    {id:"Technology & ICT",icon:"💻"},{id:"Logistics & Transport",icon:"🚚"},{id:"Energy & Sustainability",icon:"☀️"},
+    {id:"Finance & Banking",icon:"🏦"},{id:"Leather & Crafts",icon:"👜"},
+  ]
+
+  return (
+    <div>
+      {/* Hero */}
+      <section className="hbg fu" style={{minHeight:"100vh",display:"flex",alignItems:"center",padding:"80px 24px 40px"}}>
+        <div style={{maxWidth:1280,margin:"0 auto",width:"100%"}}>
+          <div style={{maxWidth:640}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:20}}>
+              <div style={{display:"flex",alignItems:"center",gap:7,background:"rgba(6,78,59,.3)",border:"1px solid rgba(52,211,153,.2)",borderRadius:20,padding:"6px 14px"}}>
+                <span className="ldot"/>
+                <span style={{color:"#6ee7b7",fontSize:12,fontWeight:500}}>AfriTech Innovation Forum is Live Now</span>
+              </div>
+            </div>
+            <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(36px,6vw,72px)",fontWeight:800,lineHeight:1.1,marginBottom:20}}>
+              Africa's Digital Hub for{" "}
+              <span className="tg" key={wi} style={{display:"block"}}>{words[wi]}</span>
+            </h1>
+            <p style={{color:"#B89660",fontSize:17,lineHeight:1.7,marginBottom:32,maxWidth:520}}>
+              Connect with African businesses across 42 countries. Exhibit virtually, meet buyers, access trade financing, and grow your exports — all in one ecosystem.
+            </p>
+            <div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:40}}>
+              <button className="btn btn-p" onClick={()=>setPage(user?.isGuest?"":"dashboard")} style={{fontSize:15,padding:"12px 24px"}}>
+                {user?.isGuest?"Sign Up Free":"My Dashboard"} <Icon name="arrow" size={16}/>
+              </button>
+              <button className="btn btn-o" onClick={()=>setPage("exhibitions")} style={{fontSize:15,padding:"12px 24px"}}>Explore Live Expos</button>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:20,color:"#7D5C28",fontSize:13}}>
+              {[["shield","Verified Businesses"],["globe","42 Countries"],["zap","AI Matchmaking"],["dollar","Trade Financing"]].map(([ic,t])=>(
+                <div key={t} style={{display:"flex",alignItems:"center",gap:6,color:"#9A7540"}}><Icon name={ic} size={14} style={{color:"#FF9A1A"}}/>{t}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+      <div className="pline"/>
+
+      {/* Live Expos */}
+      <section style={{padding:"60px 24px"}}>
+        <div style={{maxWidth:1280,margin:"0 auto"}}>
+          <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:32}}>
+            <div><Tag>Live & Upcoming</Tag>
+              <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:"#FFD59A",marginTop:8}}>Active Exhibitions</h2></div>
+            <button onClick={()=>setPage("exhibitions")} style={{color:"#FF9A1A",fontSize:13,background:"none",border:"none",cursor:"pointer"}}>View All →</button>
+          </div>
+          {expos.length===0?<div style={{textAlign:"center",padding:40,color:"#614518"}}>Loading exhibitions…</div>:
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:16}}>
+            {expos.map(e=>(
+              <div key={e.id} className="card cardh" onClick={()=>setPage("expo-"+e.id)} style={{padding:20,cursor:"pointer"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+                  <Badge status={e.status}/><span className="tag">{e.category}</span>
+                </div>
+                <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,color:"#E8DCC8",marginBottom:4}}>{e.title}</h3>
+                <p style={{color:"#7D5C28",fontSize:12,marginBottom:12}}>{e.date}</p>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,paddingTop:12,borderTop:"1px solid rgba(69,48,13,.3)"}}>
+                  {[[e.exhibitors,"Exhibitors"],[e.visitors?.toLocaleString(),"Visitors"],[e.countries,"Countries"]].map(([v,l])=>(
+                    <div key={l} style={{textAlign:"center"}}>
+                      <p style={{color:"#FF9A1A",fontWeight:700,fontSize:15}}>{v}</p>
+                      <p style={{color:"#614518",fontSize:10}}>{l}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>}
+        </div>
+      </section>
+
+      {/* Categories */}
+      <section style={{padding:"60px 24px",background:"rgba(19,13,2,.3)"}}>
+        <div style={{maxWidth:1280,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:36}}>
+            <Tag>Browse by Sector</Tag>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:"#FFD59A",marginTop:8}}>Trade Categories</h2>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:12}}>
+            {CATS.map(c=>(
+              <button key={c.id} onClick={()=>setPage("exhibitors")} className="card cardh" style={{padding:16,textAlign:"left",border:"none",cursor:"pointer",width:"100%"}}>
+                <div style={{fontSize:24,marginBottom:8}}>{c.icon}</div>
+                <p style={{color:"#E8DCC8",fontSize:13,fontWeight:600,marginBottom:3}}>{c.id.split(" ")[0]}</p>
+                <p style={{color:"#614518",fontSize:11}}>Browse companies</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Exhibitors - real users */}
+      <section style={{padding:"60px 24px"}}>
+        <div style={{maxWidth:1280,margin:"0 auto"}}>
+          <div style={{display:"flex",alignItems:"flex-end",justifyContent:"space-between",marginBottom:32}}>
+            <div><Tag>Registered Businesses</Tag>
+              <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:"#FFD59A",marginTop:8}}>Featured Exhibitors</h2></div>
+            <button onClick={()=>setPage("exhibitors")} style={{color:"#FF9A1A",fontSize:13,background:"none",border:"none",cursor:"pointer"}}>Browse All →</button>
+          </div>
+          {exhibitors.length===0?
+            <div style={{textAlign:"center",padding:40}}>
+              <p style={{color:"#9A7540",fontSize:14}}>No exhibitors yet. <span style={{color:"#FF9A1A",cursor:"pointer"}} onClick={()=>setPage("profile")}>Be the first to set up your booth!</span></p>
+            </div>:
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:14}}>
+              {exhibitors.map(e=>(
+                <div key={e.id} className="card cardh" onClick={()=>setPage("user-"+e.id)} style={{padding:16,cursor:"pointer"}}>
+                  <div style={{display:"flex",gap:10,marginBottom:10}}>
+                    <Av name={e.name} color="#92400e" size={40}/>
+                    <div>
+                      <p style={{fontWeight:600,color:"#E8DCC8",fontSize:13}}>{e.name}</p>
+                      <p style={{color:"#7D5C28",fontSize:11}}>{e.company||"Independent"}</p>
+                    </div>
+                  </div>
+                  <p style={{color:"#9A7540",fontSize:12,lineHeight:1.5,marginBottom:10}}>{(e.description||"African business on AfriExpo").slice(0,80)}{(e.description||"").length>80?"…":""}</p>
+                  {e.verified&&<div style={{display:"flex",alignItems:"center",gap:4,color:"#34d399",fontSize:11}}><Icon name="check" size={11}/>Verified</div>}
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:8}}>
+                    {(e.tags||[]).slice(0,2).map(t=><Tag key={t}>{t}</Tag>)}
+                    {e.category&&<Tag>{e.category.split(" ")[0]}</Tag>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          }
+        </div>
+      </section>
+
+      {/* Platform Modules */}
+      <section style={{padding:"60px 24px",background:"rgba(19,13,2,.4)"}}>
+        <div style={{maxWidth:1280,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:40}}>
+            <Tag>Platform Modules</Tag>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:"#FFD59A",marginTop:8,marginBottom:8}}>Everything for African Trade</h2>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+            {[
+              {icon:"building",title:"Virtual Exhibition Hall",desc:"Professional virtual booths with product catalogs and live representatives.",page:"exhibitions"},
+              {icon:"zap",title:"AI Business Matchmaking",desc:"Our AI recommends buyers to suppliers based on compatibility factors.",page:"matchmaking"},
+              {icon:"msg",title:"B2B Messaging & Meetings",desc:"Integrated live chat, appointment booking, and digital business cards.",page:"messages"},
+              {icon:"dollar",title:"Trade Financing",desc:"Invoice financing, supplier credit, LC digitization integrated with banks.",page:"financing"},
+              {icon:"globe",title:"Pan-African Marketplace",desc:"Year-round supplier discovery, RFQ system, and procurement marketplace.",page:"marketplace"},
+              {icon:"truck",title:"Logistics & Export Hub",desc:"Freight forwarders, customs brokers, shipment tracking, and documentation.",page:"logistics"},
+            ].map(({icon,title,desc,page})=>(
+              <div key={title} className="card cardh" style={{padding:22,cursor:"pointer"}} onClick={()=>setPage(page)}>
+                <div style={{width:38,height:38,borderRadius:10,background:"rgba(46,24,0,.7)",border:"1px solid rgba(138,73,0,.3)",display:"flex",alignItems:"center",justifyContent:"center",marginBottom:14,color:"#FF9A1A"}}>
+                  <Icon name={icon} size={18}/>
+                </div>
+                <h3 style={{fontWeight:600,color:"#E8DCC8",marginBottom:6,fontSize:15}}>{title}</h3>
+                <p style={{color:"#9A7540",fontSize:13,lineHeight:1.6,marginBottom:12}}>{desc}</p>
+                <span style={{color:"#FF9A1A",fontSize:12,fontWeight:600}}>Explore →</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section style={{padding:"60px 24px"}}>
+        <div style={{maxWidth:1280,margin:"0 auto"}}>
+          <div className="card" style={{padding:"60px 40px",textAlign:"center",boxShadow:"0 0 30px rgba(255,154,26,.12)"}}>
+            <Tag>Join African Trade</Tag>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(26px,4vw,44px)",fontWeight:800,color:"#f5f0e8",margin:"16px 0 12px"}}>
+              Ready to Take Your Business <span className="tg">Pan-African?</span>
+            </h2>
+            <p style={{color:"#9A7540",fontSize:15,marginBottom:28,maxWidth:480,margin:"0 auto 28px"}}>
+              Create your profile today. Reach buyers in 42 countries, access trade financing, and grow your exports.
+            </p>
+            <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+              <button className="btn btn-p" onClick={()=>setPage("profile")} style={{fontSize:15,padding:"12px 28px"}}>
+                {user?.isGuest?"Create Free Account":"Complete Your Profile"} <Icon name="arrow" size={16}/>
+              </button>
+              <button className="btn btn-o" onClick={()=>setPage("about")} style={{fontSize:15}}>Learn More</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  )
+}
+
+// ─── EXHIBITIONS ──────────────────────────────────────────────
+function ExhibitionsPage({ setPage }) {
+  const [expos, setExpos] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState("All")
+  const [query, setQuery] = useState("")
+
+  useEffect(()=>{
+    setLoading(true)
+    seedExhibitions().then(()=>
+      getDocs("exhibitions",[]).then(data=>{setExpos(data);setLoading(false)}).catch(()=>setLoading(false))
+    )
+  },[])
+
+  const filtered = expos.filter(e=>{
+    const mq = !query||e.title?.toLowerCase().includes(query.toLowerCase())
+    const mf = filter==="All"||e.status===filter.toLowerCase()
+    return mq&&mf
+  })
+
+  return (
+    <div style={{maxWidth:1280,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <div style={{textAlign:"center",marginBottom:40}}>
+        <Tag>Virtual Exhibitions</Tag>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:42,fontWeight:800,color:"#FFD59A",margin:"12px 0 10px"}}>Africa's Trade Exhibitions</h1>
+        <p style={{color:"#9A7540",fontSize:15,maxWidth:480,margin:"0 auto"}}>Live and upcoming virtual trade exhibitions connecting African businesses with global buyers</p>
+      </div>
+
+      <div className="card" style={{padding:16,marginBottom:20,display:"flex",flexWrap:"wrap",gap:12}}>
+        <div style={{position:"relative",flex:1,minWidth:200}}>
+          <Icon name="search" size={14} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"#614518"}}/>
+          <input className="inp" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search exhibitions..." style={{paddingLeft:36}}/>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:24,flexWrap:"wrap"}}>
+        {["All","Live","Upcoming","Completed"].map(f=>(
+          <button key={f} onClick={()=>setFilter(f)} style={{padding:"6px 16px",borderRadius:20,border:`1.5px solid ${filter===f?"#FF9A1A":"rgba(69,48,13,.5)"}`,background:filter===f?"#FF9A1A":"transparent",color:filter===f?"#0a0806":"#9A7540",fontSize:13,fontWeight:600,cursor:"pointer"}}>
+            {f}
+          </button>
+        ))}
+      </div>
+
+      {loading?<div style={{textAlign:"center",padding:60}}><Spin size={28}/></div>:
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(400px,1fr))",gap:20}}>
+          {filtered.map(expo=>(
+            <div key={expo.id} className="card cardh" onClick={()=>setPage("expo-"+expo.id)} style={{cursor:"pointer",overflow:"hidden"}}>
+              <div style={{height:130,background:"linear-gradient(135deg,rgba(92,49,0,.6),rgba(10,8,6,.9))",position:"relative",padding:16,display:"flex",flexDirection:"column",justifyContent:"space-between"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}><Badge status={expo.status}/><span className="tag">{expo.category}</span></div>
+                <div>
+                  <h2 style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:20,color:"#f5f0e8"}}>{expo.title}</h2>
+                  <p style={{color:"#9A7540",fontSize:12,marginTop:2}}>{expo.subtitle}</p>
+                </div>
+              </div>
+              <div style={{padding:20}}>
+                <div style={{display:"flex",gap:16,color:"#7D5C28",fontSize:12,marginBottom:12}}>
+                  <span style={{display:"flex",alignItems:"center",gap:4}}><Icon name="calendar" size={12}/>{expo.date}</span>
+                  <span style={{display:"flex",alignItems:"center",gap:4}}><Icon name="map" size={12}/>{expo.location}</span>
+                </div>
+                <p style={{color:"#9A7540",fontSize:13,lineHeight:1.6,marginBottom:14}}>{expo.description}</p>
+                <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:16}}>
+                  {(expo.sectors||[]).map(s=><Tag key={s}>{s}</Tag>)}
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,paddingTop:14,borderTop:"1px solid rgba(69,48,13,.3)",marginBottom:14}}>
+                  {[[expo.exhibitors,"Exhibitors"],[expo.visitors?.toLocaleString(),"Visitors"],[expo.countries,"Countries"]].map(([v,l])=>(
+                    <div key={l} style={{textAlign:"center"}}>
+                      <p style={{color:"#FF9A1A",fontWeight:700,fontSize:18}}>{v}</p>
+                      <p style={{color:"#614518",fontSize:11}}>{l}</p>
+                    </div>
+                  ))}
+                </div>
+                {expo.status==="live"?<button className="btn btn-p" style={{width:"100%",justifyContent:"center"}}>Join Now — Live</button>
+                :expo.status==="upcoming"?<button className="btn btn-o" style={{width:"100%",justifyContent:"center"}}>Register to Attend</button>
+                :<button className="btn btn-g" style={{width:"100%",justifyContent:"center"}}>View Recordings</button>}
+              </div>
+            </div>
+          ))}
+          {filtered.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:80}}>
+            <div style={{fontSize:48,marginBottom:12}}>🔍</div>
+            <h3 style={{color:"#E8DCC8",marginBottom:6}}>No exhibitions found</h3>
+            <p style={{color:"#7D5C28",fontSize:13}}>Try adjusting your search</p>
+          </div>}
+        </div>
+      }
+    </div>
+  )
+}
+
+// ─── EXPO DETAIL ──────────────────────────────────────────────
+function ExpoDetailPage({ expoId, setPage }) {
+  const [expo, setExpo] = useState(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(()=>{ getDoc("exhibitions", expoId).then(d=>{setExpo(d);setLoading(false)}).catch(()=>setLoading(false)) },[expoId])
+  if (loading) return <div style={{textAlign:"center",padding:100}}><Spin size={28}/></div>
+  if (!expo) return <div style={{textAlign:"center",padding:100,color:"#7D5C28"}}>Exhibition not found. <button onClick={()=>setPage("exhibitions")} style={{color:"#FF9A1A",background:"none",border:"none",cursor:"pointer"}}>Back</button></div>
+  return (
+    <div style={{maxWidth:1100,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <button onClick={()=>setPage("exhibitions")} style={{display:"flex",alignItems:"center",gap:6,color:"#9A7540",fontSize:13,background:"none",border:"none",cursor:"pointer",marginBottom:24}}>
+        <Icon name="arrow" size={14} style={{transform:"rotate(180deg)"}}/> Back to Exhibitions
+      </button>
+      <div className="card" style={{padding:32,marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
+          <div>
+            <div style={{display:"flex",gap:10,marginBottom:12}}><Badge status={expo.status}/><Tag>{expo.category}</Tag></div>
+            <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:36,fontWeight:800,color:"#f5f0e8",marginBottom:6}}>{expo.title}</h1>
+            <p style={{color:"#9A7540",fontSize:15,marginBottom:14}}>{expo.subtitle}</p>
+            <div style={{display:"flex",gap:20,color:"#7D5C28",fontSize:13,flexWrap:"wrap"}}>
+              <span style={{display:"flex",alignItems:"center",gap:5}}><Icon name="calendar" size={13}/>{expo.date}</span>
+              <span style={{display:"flex",alignItems:"center",gap:5}}><Icon name="map" size={13}/>{expo.location}</span>
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            {expo.status==="live"?<button className="btn btn-p">● Join Live Now</button>
+            :expo.status==="upcoming"?<button className="btn btn-p">Register to Attend</button>
+            :<button className="btn btn-g">View Recordings</button>}
+            <button className="btn btn-g" onClick={()=>setPage("exhibitors")}><Icon name="users" size={14}/> View Exhibitors</button>
+          </div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
+        <div className="card" style={{padding:24}}>
+          <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:16,marginBottom:12}}>About This Exhibition</h2>
+          <p style={{color:"#9A7540",fontSize:14,lineHeight:1.8,marginBottom:14}}>{expo.description}</p>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            {(expo.sectors||[]).map(s=><Tag key={s}>{s}</Tag>)}
+          </div>
+        </div>
+        <div className="card" style={{padding:24}}>
+          <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:16,marginBottom:16}}>Exhibition Stats</h2>
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            {[[expo.exhibitors,"Exhibitors","building"],[expo.visitors?.toLocaleString(),"Expected Visitors","users"],[expo.countries,"Countries","globe"]].map(([v,l,ic])=>(
+              <div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(42,28,6,.4)",borderRadius:8,padding:"12px 16px"}}>
+                <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                  <Icon name={ic} size={15} style={{color:"#FF9A1A"}}/><span style={{color:"#9A7540",fontSize:13}}>{l}</span>
+                </div>
+                <span style={{color:"#FF9A1A",fontWeight:700,fontSize:18,fontFamily:"'Playfair Display',serif"}}>{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── EXHIBITORS ───────────────────────────────────────────────
+function ExhibitorsPage({ setPage }) {
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [query, setQuery] = useState("")
+  const [country, setCountry] = useState("All")
+  const [category, setCategory] = useState("All")
+  const [verOnly, setVerOnly] = useState(false)
+
+  useEffect(()=>{
+    setLoading(true)
+    getDocs("users",[{type:"where",f:"role",op:"==",v:"exhibitor"}]).then(data=>{
+      setUsers(data); setLoading(false)
+    }).catch(()=>setLoading(false))
+  },[])
+
+  const filtered = users.filter(u=>{
+    const mq = !query||(u.name||"").toLowerCase().includes(query.toLowerCase())||(u.company||"").toLowerCase().includes(query.toLowerCase())||(u.description||"").toLowerCase().includes(query.toLowerCase())
+    const mc = country==="All"||(u.country||"")=== country
+    const mcat = category==="All"||(u.category||"").includes(category)
+    const mv = !verOnly||u.verified
+    return mq&&mc&&mcat&&mv
+  })
+
+  const countries = ["All",...[...new Set(users.map(u=>u.country).filter(Boolean))].sort()]
+  const categories = ["All","Agriculture & Food","Textiles & Apparel","Technology & ICT","Manufacturing","Logistics & Transport","Energy & Sustainability","Leather & Crafts"]
+
+  return (
+    <div style={{maxWidth:1280,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <div style={{marginBottom:32}}>
+        <Tag>Verified Businesses</Tag>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:40,fontWeight:800,color:"#FFD59A",margin:"10px 0 8px"}}>Exhibitor Directory</h1>
+        <p style={{color:"#9A7540",fontSize:15}}>Discover African suppliers, manufacturers, and exporters</p>
+      </div>
+      <div style={{display:"flex",gap:20}}>
+        {/* Sidebar */}
+        <div className="card" style={{width:220,flexShrink:0,padding:20,alignSelf:"flex-start",position:"sticky",top:80}}>
+          <p style={{color:"#E8DCC8",fontWeight:600,fontSize:13,marginBottom:14}}>Filters</p>
+          <div style={{position:"relative",marginBottom:14}}>
+            <Icon name="search" size={13} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#614518"}}/>
+            <input className="inp" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search..." style={{paddingLeft:30,fontSize:12}}/>
+          </div>
+          <button onClick={()=>setVerOnly(v=>!v)} style={{width:"100%",display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:8,border:`1.5px solid ${verOnly?"#FF9A1A":"rgba(69,48,13,.4)"}`,background:verOnly?"rgba(138,73,0,.2)":"transparent",color:verOnly?"#FF9A1A":"#9A7540",fontSize:12,cursor:"pointer",marginBottom:14,fontWeight:500}}>
+            <Icon name="check" size={13}/>Verified Only
+          </button>
+          <p style={{color:"#614518",fontSize:10,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Category</p>
+          <div style={{display:"flex",flexDirection:"column",gap:2,marginBottom:14}}>
+            {categories.map(c=>(
+              <button key={c} onClick={()=>setCategory(c)} style={{textAlign:"left",padding:"5px 8px",borderRadius:6,border:"none",background:category===c?"rgba(46,24,0,.6)":"transparent",color:category===c?"#FF9A1A":"#9A7540",fontSize:11,cursor:"pointer"}}>
+                {c}
+              </button>
+            ))}
+          </div>
+          <p style={{color:"#614518",fontSize:10,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Country</p>
+          <select className="inp" value={country} onChange={e=>setCountry(e.target.value)} style={{fontSize:12}}>
+            {countries.map(c=><option key={c}>{c}</option>)}
+          </select>
+        </div>
+        {/* Results */}
+        <div style={{flex:1}}>
+          <p style={{color:"#9A7540",fontSize:13,marginBottom:16}}>{filtered.length} companies found</p>
+          {loading?<div style={{textAlign:"center",padding:60}}><Spin size={28}/></div>:
+            filtered.length===0?
+              <div style={{textAlign:"center",padding:80}}>
+                <div style={{fontSize:48,marginBottom:12}}>🏢</div>
+                <h3 style={{color:"#E8DCC8",marginBottom:8}}>No exhibitors yet</h3>
+                <p style={{color:"#9A7540",fontSize:13}}>Be the first to register as an exhibitor!</p>
+              </div>:
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:14}}>
+              {filtered.map(u=>(
+                <div key={u.id} className="card cardh" onClick={()=>setPage("user-"+u.id)} style={{padding:18,cursor:"pointer"}}>
+                  <div style={{display:"flex",gap:10,marginBottom:10,alignItems:"flex-start"}}>
+                    <Av name={u.name} color="#92400e" size={40}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                        <p style={{fontWeight:600,color:"#E8DCC8",fontSize:13}}>{u.name}</p>
+                        {u.verified&&<Icon name="check" size={12} style={{color:"#34d399",flexShrink:0}}/>}
+                      </div>
+                      <p style={{color:"#7D5C28",fontSize:11}}>{u.company||"Independent"}</p>
+                      {u.country&&<p style={{color:"#614518",fontSize:10}}>{u.country}</p>}
+                    </div>
+                  </div>
+                  <p style={{color:"#9A7540",fontSize:12,lineHeight:1.5,marginBottom:10}}>{(u.description||"African exporter on AfriExpo").slice(0,80)}</p>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4,marginTop:8}}>
+                    {(u.tags||[]).slice(0,2).map(t=><Tag key={t}>{t}</Tag>)}
+                    {u.category&&<Tag>{u.category.split("&")[0].trim()}</Tag>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── USER PROFILE DETAIL (public view) ───────────────────────
+function UserDetailPage({ userId, setPage }) {
+  const [u, setU] = useState(null)
+  const [loading, setLoading] = useState(true)
+  useEffect(()=>{ getDoc("users",userId).then(d=>{setU(d);setLoading(false)}).catch(()=>setLoading(false)) },[userId])
+  if (loading) return <div style={{textAlign:"center",padding:100}}><Spin size={28}/></div>
+  if (!u) return <div style={{textAlign:"center",padding:100,color:"#7D5C28"}}>User not found. <button onClick={()=>setPage("exhibitors")} style={{color:"#FF9A1A",background:"none",border:"none",cursor:"pointer"}}>Back</button></div>
+  return (
+    <div style={{maxWidth:900,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <button onClick={()=>setPage("exhibitors")} style={{display:"flex",alignItems:"center",gap:6,color:"#9A7540",fontSize:13,background:"none",border:"none",cursor:"pointer",marginBottom:20}}>
+        <Icon name="arrow" size={14} style={{transform:"rotate(180deg)"}}/> Back to Directory
+      </button>
+      <div className="card" style={{padding:"28px 32px",marginBottom:20}}>
+        <div style={{display:"flex",flexWrap:"wrap",gap:20,alignItems:"flex-start"}}>
+          <Av name={u.name} color="#92400e" size={72}/>
+          <div style={{flex:1}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginBottom:6}}>
+              <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700,color:"#f5f0e8"}}>{u.name}</h1>
+              {u.verified&&<div style={{display:"flex",alignItems:"center",gap:4,background:"rgba(6,78,59,.3)",border:"1px solid rgba(52,211,153,.2)",borderRadius:20,padding:"3px 10px",color:"#6ee7b7",fontSize:11}}><Icon name="check" size={11}/>Verified</div>}
+            </div>
+            <p style={{color:"#9A7540",fontSize:15,marginBottom:4}}>{u.company||"Independent Exporter"}</p>
+            <div style={{display:"flex",gap:16,color:"#7D5C28",fontSize:13,flexWrap:"wrap"}}>
+              {u.country&&<span style={{display:"flex",alignItems:"center",gap:4}}><Icon name="map" size={13}/>{u.country}</span>}
+              {u.category&&<span className="tag">{u.category}</span>}
+              <span className="tag">{u.role}</span>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            <button className="btn btn-p" onClick={()=>setPage("messages")}><Icon name="msg" size={14}/>Message</button>
+            <button className="btn btn-g" onClick={()=>setPage("matchmaking")}><Icon name="zap" size={14}/>Match</button>
+          </div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:20}}>
+        <div style={{display:"flex",flexDirection:"column",gap:16}}>
+          {u.description&&<div className="card" style={{padding:22}}>
+            <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:15,marginBottom:12}}>About</h2>
+            <p style={{color:"#9A7540",fontSize:14,lineHeight:1.8}}>{u.description}</p>
+          </div>}
+          {(u.products||[]).length>0&&<div className="card" style={{padding:22}}>
+            <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:15,marginBottom:14}}>Products & Services</h2>
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {u.products.map((p,i)=>(
+                <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(69,48,13,.2)"}}>
+                  <div style={{width:6,height:6,borderRadius:3,background:"#FF9A1A",flexShrink:0}}/>
+                  <span style={{color:"#B89660",fontSize:13}}>{p}</span>
+                </div>
+              ))}
+            </div>
+          </div>}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div className="card" style={{padding:20}}>
+            <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:14,marginBottom:14}}>Contact Info</h3>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              {u.email&&<div style={{display:"flex",gap:8,alignItems:"center"}}><Icon name="msg" size={13} style={{color:"#FF9A1A",flexShrink:0}}/><span style={{color:"#9A7540",fontSize:13}}>{u.email}</span></div>}
+              {u.phone&&<div style={{display:"flex",gap:8,alignItems:"center"}}><Icon name="bell" size={13} style={{color:"#FF9A1A",flexShrink:0}}/><span style={{color:"#9A7540",fontSize:13}}>{u.phone}</span></div>}
+              {u.website&&<div style={{display:"flex",gap:8,alignItems:"center"}}><Icon name="globe" size={13} style={{color:"#FF9A1A",flexShrink:0}}/><span style={{color:"#9A7540",fontSize:13}}>{u.website}</span></div>}
+            </div>
+          </div>
+          {(u.tags||[]).length>0&&<div className="card" style={{padding:20}}>
+            <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:14,marginBottom:12}}>Tags</h3>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {u.tags.map(t=><Tag key={t}>{t}</Tag>)}
+            </div>
+          </div>}
+          {u.seeking&&<div className="card" style={{padding:20}}>
+            <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:14,marginBottom:8}}>Seeking</h3>
+            <p style={{color:"#9A7540",fontSize:13}}>{u.seeking}</p>
+          </div>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── MARKETPLACE ──────────────────────────────────────────────
+function MarketplacePage({ user, setPage }) {
+  const [listings, setListings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showAdd, setShowAdd] = useState(false)
+  const [searchQ, setSearchQ] = useState("")
+  const [filterCat, setFilterCat] = useState("All")
+  const [form, setForm] = useState({ title:"", description:"", price:"", moq:"", category:"Agriculture & Food", origin:"", contact:"" })
+  const [saving, setSaving] = useState(false)
+  const [msg, setMsg] = useState("")
+
+  const CATS = ["All","Agriculture & Food","Textiles & Apparel","Manufacturing","Technology","Logistics","Energy","Leather & Crafts"]
+
+  useEffect(()=>{
+    setLoading(true)
+    getDocs("marketplace",[{type:"orderBy",f:"createdAt",dir:"desc"}]).then(data=>{setListings(data);setLoading(false)}).catch(()=>setLoading(false))
+  },[])
+
+  const filtered = listings.filter(l=>{
+    const mq = !searchQ||(l.title||"").toLowerCase().includes(searchQ.toLowerCase())||(l.description||"").toLowerCase().includes(searchQ.toLowerCase())
+    const mc = filterCat==="All"||(l.category||"")=== filterCat
+    return mq&&mc
+  })
+
+  const publish = async () => {
+    if (!form.title||!form.price) { setMsg("Title and price are required."); return }
+    setSaving(true); setMsg("")
+    try {
+      const entry = { ...form, seller:user.name, sellerId:user.id, sellerCompany:user.company||"", origin:form.origin||user.country||"", createdAt:ts() }
+      const ref = await addDoc("marketplace", entry)
+      setListings(l=>[{...entry,id:ref.id},...l])
+      setShowAdd(false)
+      setForm({ title:"",description:"",price:"",moq:"",category:"Agriculture & Food",origin:"",contact:"" })
+    } catch(e) { setMsg("Failed to publish. Try again.") }
+    setSaving(false)
+  }
+
+  return (
+    <div style={{maxWidth:1280,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:32,flexWrap:"wrap",gap:14}}>
+        <div>
+          <Tag>Pan-African Marketplace</Tag>
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:40,fontWeight:800,color:"#FFD59A",margin:"10px 0 8px"}}>Trade Marketplace</h1>
+          <p style={{color:"#9A7540",fontSize:15}}>Browse supplier listings and post your products</p>
+        </div>
+        {!user?.isGuest&&<button className="btn btn-p" onClick={()=>setShowAdd(!showAdd)}><Icon name="plus" size={15}/>{showAdd?"Cancel":"+ List a Product"}</button>}
+      </div>
+
+      {/* Add listing form */}
+      {showAdd&&(
+        <div className="card" style={{padding:28,marginBottom:28}}>
+          <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:17,marginBottom:20}}>New Marketplace Listing</h2>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            <div style={{gridColumn:"1/-1"}}>
+              <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Product / Service Title *</label>
+              <input className="inp" value={form.title} onChange={e=>setForm(f=>({...f,title:e.target.value}))} placeholder="e.g. Organic Yirgacheffe Coffee Grade 1"/>
+            </div>
+            <div style={{gridColumn:"1/-1"}}>
+              <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Description</label>
+              <textarea className="inp" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="Describe your product, specifications, certifications..."/>
+            </div>
+            <div>
+              <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Price / Unit *</label>
+              <input className="inp" value={form.price} onChange={e=>setForm(f=>({...f,price:e.target.value}))} placeholder="e.g. $3.20/kg FOB"/>
+            </div>
+            <div>
+              <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>MOQ</label>
+              <input className="inp" value={form.moq} onChange={e=>setForm(f=>({...f,moq:e.target.value}))} placeholder="e.g. 5 MT"/>
+            </div>
+            <div>
+              <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Category</label>
+              <select className="inp" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
+                {CATS.filter(c=>c!=="All").map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Origin Country</label>
+              <input className="inp" value={form.origin} onChange={e=>setForm(f=>({...f,origin:e.target.value}))} placeholder="e.g. Ethiopia"/>
+            </div>
+          </div>
+          {msg&&<div style={{marginTop:12,background:"rgba(127,29,29,.3)",border:"1px solid rgba(252,165,165,.2)",borderRadius:8,padding:"10px 14px",color:"#fca5a5",fontSize:12}}>{msg}</div>}
+          <div style={{display:"flex",gap:10,marginTop:20}}>
+            <button className="btn btn-p" onClick={publish} disabled={saving} style={{justifyContent:"center"}}>
+              {saving?<Spin size={14}/>:"Publish Listing"}
+            </button>
+            <button className="btn btn-g" onClick={()=>setShowAdd(false)}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap",alignItems:"center"}}>
+        <div style={{position:"relative",flex:1,minWidth:200}}>
+          <Icon name="search" size={13} style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#614518"}}/>
+          <input className="inp" placeholder="Search products…" value={searchQ} onChange={e=>setSearchQ(e.target.value)} style={{paddingLeft:30}}/>
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {CATS.map(c=>(
+            <button key={c} onClick={()=>setFilterCat(c)} style={{padding:"6px 14px",borderRadius:20,border:`1.5px solid ${filterCat===c?"#FF9A1A":"rgba(69,48,13,.4)"}`,background:filterCat===c?"rgba(255,154,26,.1)":"transparent",color:filterCat===c?"#FF9A1A":"#9A7540",fontSize:12,cursor:"pointer"}}>
+              {c}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading?<div style={{textAlign:"center",padding:60}}><Spin size={28}/></div>:
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:16}}>
+          {filtered.map(l=>(
+            <div key={l.id} className="card cardh" style={{padding:20}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+                <Tag>{l.category}</Tag>
+              </div>
+              <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:15,marginBottom:6}}>{l.title}</h3>
+              <p style={{color:"#9A7540",fontSize:12,lineHeight:1.6,marginBottom:14}}>{(l.description||"").slice(0,100)}{(l.description||"").length>100?"…":""}</p>
+              <div style={{display:"flex",gap:14,marginBottom:14}}>
+                <div><p style={{color:"#7D5C28",fontSize:10}}>PRICE</p><p style={{color:"#FF9A1A",fontWeight:700,fontSize:16}}>{l.price}</p></div>
+                {l.moq&&<div><p style={{color:"#7D5C28",fontSize:10}}>MOQ</p><p style={{color:"#E8DCC8",fontWeight:600,fontSize:14}}>{l.moq}</p></div>}
+                {l.origin&&<div><p style={{color:"#7D5C28",fontSize:10}}>ORIGIN</p><p style={{color:"#E8DCC8",fontWeight:600,fontSize:14}}>{l.origin}</p></div>}
+              </div>
+              <div style={{display:"flex",gap:8,marginBottom:12}}>
+                <span style={{fontSize:11,color:"#7D5C28",display:"flex",alignItems:"center",gap:4}}><Icon name="building" size={11}/>{l.seller}</span>
+              </div>
+              <button className="btn btn-p" style={{width:"100%",justifyContent:"center",fontSize:12,padding:"8px"}} onClick={()=>setPage("messages")}>Send Inquiry</button>
+            </div>
+          ))}
+          {filtered.length===0&&(
+            <div style={{gridColumn:"1/-1",textAlign:"center",padding:60}}>
+              <div style={{fontSize:48,marginBottom:12}}>🛒</div>
+              <p style={{color:"#7D5C28",fontSize:14}}>No listings found. {!user?.isGuest&&<span style={{color:"#FF9A1A",cursor:"pointer"}} onClick={()=>setShowAdd(true)}>Add the first listing!</span>}</p>
+            </div>
+          )}
+        </div>
+      }
+    </div>
+  )
+}
+
+// ─── FINANCING ────────────────────────────────────────────────
+function FinancingPage({ user }) {
+  const [amount, setAmount] = useState(500000)
+  const [tenure, setTenure] = useState(12)
+  const [applied, setApplied] = useState(null)
+  const [applying, setApplying] = useState(null)
+  const rate = 0.135
+  const monthly = (amount*rate/12)+(amount/tenure)
+
+  const PRODUCTS = [
+    { id:1, name:"Export Invoice Financing", bank:"Bank of Abyssinia", rate:"12–15% p.a.", amount:"Up to ETB 5M", tenure:"30–90 days", description:"Finance your export invoices before buyer payment. Get up to 85% advance.", tags:["Fast Approval","No Collateral","Digital"], accent:"#92400e" },
+    { id:2, name:"Trade Credit Facility", bank:"Dashen Bank", rate:"11–14% p.a.", amount:"Up to ETB 20M", tenure:"6–18 months", description:"Revolving credit line for established exporters. Backed by trade history.", tags:["Revolving","Pre-approved","Bulk"], accent:"#1e3a5f" },
+    { id:3, name:"Letter of Credit (LC)", bank:"Commercial Bank of Ethiopia", rate:"0.75–1.5% fee", amount:"Unlimited", tenure:"Per shipment", description:"Secure international trade with CBE's LC guarantee service. 48hr processing.", tags:["International","Secure","SWIFT"], accent:"#14532d" },
+    { id:4, name:"SME Merchant Loan", bank:"Nib International Bank", rate:"14–18% p.a.", amount:"Up to ETB 2M", tenure:"12–36 months", description:"Quick business loans for SME exhibitors. Digital application, 5-day approval.", tags:["SME","Quick","Digital"], accent:"#3b0764" },
+  ]
+
+  const apply = async (p) => {
+    if (user?.isGuest) { alert("Please sign in to apply for financing."); return }
+    setApplying(p.id)
+    try {
+      await addDoc("financing_applications", { userId:user.id, userName:user.name, userCompany:user.company||"", product:p.name, bank:p.bank, requestedAmount:amount, tenure, status:"pending", createdAt:ts() })
+      setApplied(p.id)
+    } catch(e) { setApplied(p.id) }
+    setApplying(null)
+  }
+
+  return (
+    <div style={{maxWidth:1200,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <div style={{marginBottom:36}}>
+        <Tag>Trade Financing Ecosystem</Tag>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:42,fontWeight:800,color:"#FFD59A",margin:"12px 0 10px"}}>Fund Your Trade</h1>
+        <p style={{color:"#9A7540",fontSize:15,maxWidth:520}}>Access Ethiopia's leading trade finance products — integrated directly with your AfriExpo profile.</p>
+      </div>
+      <div className="card" style={{display:"flex",flexWrap:"wrap",gap:20,justifyContent:"center",padding:"16px 24px",marginBottom:36}}>
+        {[["shield","Bank-Grade Security"],["zap","5-Day Approval"],["check","Fully Digital"],["building","4 Partner Banks"]].map(([ic,t])=>(
+          <div key={t} style={{display:"flex",alignItems:"center",gap:8,color:"#9A7540",fontSize:13}}><Icon name={ic} size={15} style={{color:"#FF9A1A"}}/>{t}</div>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16,marginBottom:36}}>
+        {PRODUCTS.map(p=>(
+          <div key={p.id} className="card cardh" style={{padding:22}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+              <div>
+                <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:15,marginBottom:3}}>{p.name}</h3>
+                <p style={{color:"#7D5C28",fontSize:11}}>{p.bank}</p>
+              </div>
+              <div style={{width:36,height:36,borderRadius:10,background:p.accent+"22",border:`1px solid ${p.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",color:p.accent,flexShrink:0}}>
+                <Icon name="dollar" size={16}/>
+              </div>
+            </div>
+            <p style={{color:"#9A7540",fontSize:13,lineHeight:1.6,marginBottom:14}}>{p.description}</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
+              {[["Rate",p.rate],["Amount",p.amount],["Tenure",p.tenure]].map(([l,v])=>(
+                <div key={l} style={{background:"rgba(42,28,6,.6)",borderRadius:7,padding:"7px 8px",textAlign:"center"}}>
+                  <p style={{color:"#FF9A1A",fontWeight:700,fontSize:11}}>{v}</p>
+                  <p style={{color:"#614518",fontSize:9,marginTop:2}}>{l}</p>
+                </div>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:14}}>
+              {p.tags.map(t=><Tag key={t}>{t}</Tag>)}
+            </div>
+            {applied===p.id?
+              <div style={{background:"rgba(6,78,59,.2)",border:"1px solid rgba(52,211,153,.2)",borderRadius:8,padding:"10px 14px",color:"#6ee7b7",fontSize:13,display:"flex",alignItems:"center",gap:8}}>
+                <Icon name="check" size={14}/> Application submitted! Our team will contact you within 24hrs.
+              </div>:
+              <button className="btn btn-p" style={{width:"100%",justifyContent:"center",fontSize:13}} onClick={()=>apply(p)} disabled={applying===p.id}>
+                {applying===p.id?<Spin size={14}/>:<>Apply Now <Icon name="arrow" size={14}/></>}
+              </button>
+            }
+          </div>
+        ))}
+      </div>
+
+      {/* Calculator */}
+      <div className="card" style={{padding:32}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:"#FFD59A",marginBottom:6}}>Trade Finance Calculator</h2>
+        <p style={{color:"#9A7540",fontSize:14,marginBottom:28}}>Estimate your monthly repayments</p>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:40,alignItems:"center"}}>
+          <div style={{display:"flex",flexDirection:"column",gap:24}}>
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                <label style={{color:"#B89660",fontSize:14}}>Loan Amount (ETB)</label>
+                <span style={{color:"#FF9A1A",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",fontSize:14}}>{amount.toLocaleString()}</span>
+              </div>
+              <input type="range" min={100000} max={5000000} step={100000} value={amount} onChange={e=>setAmount(Number(e.target.value))} style={{width:"100%",accentColor:"#FF9A1A"}}/>
+            </div>
+            <div>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                <label style={{color:"#B89660",fontSize:14}}>Tenure (Months)</label>
+                <span style={{color:"#FF9A1A",fontWeight:700,fontFamily:"'JetBrains Mono',monospace",fontSize:14}}>{tenure} mo</span>
+              </div>
+              <input type="range" min={1} max={36} step={1} value={tenure} onChange={e=>setTenure(Number(e.target.value))} style={{width:"100%",accentColor:"#FF9A1A"}}/>
+            </div>
+          </div>
+          <div className="card" style={{padding:24,textAlign:"center"}}>
+            <p style={{color:"#9A7540",fontSize:13,marginBottom:4}}>Monthly Payment</p>
+            <p style={{fontFamily:"'Playfair Display',serif",fontSize:38,fontWeight:700,color:"#FF9A1A"}}>ETB {Math.round(monthly).toLocaleString()}</p>
+            <p style={{color:"#614518",fontSize:11,marginBottom:20}}>at ~13.5% indicative rate</p>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+              {[["Total Repayment",Math.round(monthly*tenure).toLocaleString()],["Total Interest",Math.round(monthly*tenure-amount).toLocaleString()]].map(([l,v])=>(
+                <div key={l} style={{background:"rgba(42,28,6,.6)",borderRadius:8,padding:10}}>
+                  <p style={{color:"#9A7540",fontSize:10,marginBottom:3}}>{l}</p>
+                  <p style={{color:"#E8DCC8",fontWeight:600,fontSize:13}}>ETB {v}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── LOGISTICS ────────────────────────────────────────────────
+function LogisticsPage() {
+  const [tab, setTab] = useState("freight")
+  const [mode, setMode] = useState("sea")
+  const [weight, setWeight] = useState(500)
+  const [trackId, setTrackId] = useState("")
+  const [tracking, setTracking] = useState(false)
+  const [trackResult, setTrackResult] = useState(null)
+  const cost = mode==="air"?weight*3.2:mode==="sea"?weight*0.95:weight*1.8
+  const FWDS = [
+    {name:"EthioFreight Express",type:"Air & Sea",coverage:"Global",rating:4.8,reviews:234,price:"From $2.40/kg",badge:"Top Rated"},
+    {name:"Pan-Africa Logistics Hub",type:"Road & Sea",coverage:"Africa",rating:4.5,reviews:318,price:"From $1.80/kg",badge:"Pan-African"},
+    {name:"Addis Air Cargo",type:"Air Freight",coverage:"Global",rating:4.7,reviews:89,price:"From $3.10/kg",badge:"Express"},
+    {name:"EAC Shipping Lines",type:"Sea Freight",coverage:"East Africa",rating:4.4,reviews:156,price:"From $0.90/kg",badge:"Affordable"},
+  ]
+  const DOCS = [
+    {name:"Commercial Invoice",required:true,desc:"Details of goods, price, and parties"},
+    {name:"Packing List",required:true,desc:"Itemized list of shipment contents"},
+    {name:"Certificate of Origin",required:true,desc:"Verifies goods were made in Ethiopia"},
+    {name:"Bill of Lading / AWB",required:true,desc:"Contract between shipper and carrier"},
+    {name:"Phytosanitary Certificate",required:false,desc:"Required for plant-based goods"},
+    {name:"Export License",required:false,desc:"Required for controlled commodities"},
+    {name:"Letter of Credit",required:false,desc:"Payment guarantee from buyer's bank"},
+  ]
+  const doTrack = async () => {
+    setTracking(true)
+    await new Promise(r=>setTimeout(r,1200))
+    setTrackResult({ id:trackId||"AFRI-2025-ETH-00123", status:"In Transit", location:"Dubai UAE — Hub", eta:"3 days", steps:[
+      {label:"Shipment Picked Up",done:true,date:"Jan 20, 08:00"},
+      {label:"Customs Cleared — Addis Ababa",done:true,date:"Jan 20, 14:30"},
+      {label:"Departed Bole Airport",done:true,date:"Jan 21, 02:15"},
+      {label:"Arrived Dubai Hub",done:true,date:"Jan 21, 08:50"},
+      {label:"In Transit to Final Destination",done:false,date:"Expected Jan 24"},
+    ]})
+    setTracking(false)
+  }
+  return (
+    <div style={{maxWidth:1280,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <div style={{marginBottom:32}}>
+        <Tag>Logistics & Export</Tag>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:40,fontWeight:800,color:"#FFD59A",margin:"10px 0 8px"}}>Export Hub</h1>
+        <p style={{color:"#9A7540",fontSize:15,maxWidth:540}}>Freight forwarders, customs brokers, shipment tracking, and export documentation</p>
+      </div>
+      <div style={{display:"flex",gap:4,background:"rgba(19,13,2,.5)",borderRadius:12,padding:4,marginBottom:24,width:"fit-content",border:"1px solid rgba(69,48,13,.3)"}}>
+        {[["freight","Forwarders"],["quote","Get Quote"],["docs","Documents"],["track","Track Shipment"]].map(([id,label])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{padding:"7px 14px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:tab===id?"#FF9A1A":"transparent",color:tab===id?"#0a0806":"#9A7540",transition:"all .15s"}}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab==="freight"&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:16}}>
+          {FWDS.map(fw=>(
+            <div key={fw.name} className="card cardh" style={{padding:22}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+                <div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                    <p style={{fontWeight:600,color:"#E8DCC8",fontSize:14}}>{fw.name}</p><Tag>{fw.badge}</Tag>
+                  </div>
+                  <p style={{color:"#7D5C28",fontSize:12}}>{fw.type} · {fw.coverage}</p>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <p style={{color:"#FF9A1A",fontWeight:700,fontSize:14}}>{fw.price}</p>
+                  <p style={{color:"#7D5C28",fontSize:11}}>⭐ {fw.rating} ({fw.reviews})</p>
+                </div>
+              </div>
+              <button className="btn btn-p" style={{width:"100%",justifyContent:"center",fontSize:12}}>Get Quote</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {tab==="quote"&&(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:24,maxWidth:900}}>
+          <div className="card" style={{padding:24}}>
+            <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:15,marginBottom:18}}>Shipping Quote</h2>
+            <div style={{display:"flex",flexDirection:"column",gap:16}}>
+              <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Origin</label>
+                <select className="inp"><option>Addis Ababa, Ethiopia</option><option>Nairobi, Kenya</option><option>Kigali, Rwanda</option></select></div>
+              <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Destination</label>
+                <input className="inp" placeholder="e.g. Hamburg, Germany"/></div>
+              <div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                  <label style={{color:"#9A7540",fontSize:12}}>Cargo Weight (kg)</label>
+                  <span style={{color:"#FF9A1A",fontWeight:700,fontSize:12}}>{weight} kg</span>
+                </div>
+                <input type="range" min={10} max={10000} step={10} value={weight} onChange={e=>setWeight(Number(e.target.value))} style={{width:"100%",accentColor:"#FF9A1A"}}/>
+              </div>
+              <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:8}}>Shipping Mode</label>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+                  {[["sea","🚢 Sea","Cheapest"],["road","🚚 Road","Africa"],["air","✈️ Air","Fastest"]].map(([id,lbl,sub])=>(
+                    <button key={id} onClick={()=>setMode(id)} style={{padding:"10px 6px",borderRadius:8,border:`1.5px solid ${mode===id?"#FF9A1A":"rgba(69,48,13,.4)"}`,background:mode===id?"rgba(255,154,26,.1)":"transparent",color:mode===id?"#FF9A1A":"#9A7540",fontSize:12,cursor:"pointer",textAlign:"center"}}>
+                      <p>{lbl}</p><p style={{fontSize:10,marginTop:2,opacity:.7}}>{sub}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button className="btn btn-p" style={{justifyContent:"center"}}>Get Instant Quote →</button>
+            </div>
+          </div>
+          <div className="card" style={{padding:24,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center"}}>
+            <p style={{color:"#9A7540",fontSize:13,marginBottom:4}}>Estimated Cost</p>
+            <p style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:700,color:"#FF9A1A"}}>${Math.round(cost).toLocaleString()}</p>
+            <p style={{color:"#614518",fontSize:12,marginBottom:20}}>for {weight}kg via {mode}</p>
+            {[["Transit Time",mode==="air"?"3–5 days":mode==="sea"?"21–35 days":"7–14 days"],["Insurance (1%)",`$${Math.round(cost*0.01)}`]].map(([l,v])=>(
+              <div key={l} style={{display:"flex",justifyContent:"space-between",width:"100%",background:"rgba(42,28,6,.6)",borderRadius:7,padding:"8px 12px",marginBottom:8}}>
+                <span style={{color:"#9A7540",fontSize:12}}>{l}</span><span style={{color:"#E8DCC8",fontWeight:600,fontSize:12}}>{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {tab==="docs"&&(
+        <div style={{maxWidth:700}}>
+          {DOCS.map(doc=>(
+            <div key={doc.name} className="card" style={{padding:"14px 18px",display:"flex",alignItems:"center",gap:14,marginBottom:10}}>
+              <div style={{width:36,height:36,borderRadius:9,background:doc.required?"rgba(46,24,0,.6)":"rgba(42,28,6,.4)",border:`1px solid ${doc.required?"rgba(138,73,0,.4)":"rgba(69,48,13,.3)"}`,display:"flex",alignItems:"center",justifyContent:"center",color:doc.required?"#FF9A1A":"#614518",flexShrink:0}}>
+                <Icon name="file" size={15}/>
+              </div>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+                  <p style={{fontWeight:600,color:"#E8DCC8",fontSize:13}}>{doc.name}</p>
+                  <span style={{fontSize:10,padding:"2px 6px",borderRadius:4,background:doc.required?"rgba(127,29,29,.3)":"rgba(42,28,6,.5)",color:doc.required?"#fca5a5":"#7D5C28"}}>{doc.required?"Required":"Optional"}</span>
+                </div>
+                <p style={{color:"#7D5C28",fontSize:12}}>{doc.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+      {tab==="track"&&(
+        <div style={{maxWidth:500}}>
+          <div className="card" style={{padding:28}}>
+            <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:16,marginBottom:20}}>Track Your Shipment</h2>
+            <div style={{display:"flex",gap:10,marginBottom:20}}>
+              <input className="inp" value={trackId} onChange={e=>setTrackId(e.target.value)} placeholder="e.g. AFRI-2025-ETH-00123" style={{flex:1}}/>
+              <button className="btn btn-p" onClick={doTrack} disabled={tracking} style={{flexShrink:0}}>
+                {tracking?<Spin size={14}/>:"Track"}
+              </button>
+            </div>
+            {trackResult&&(
+              <div>
+                <div style={{background:"rgba(6,78,59,.2)",border:"1px solid rgba(52,211,153,.2)",borderRadius:10,padding:"12px 16px",marginBottom:16,display:"flex",justifyContent:"space-between"}}>
+                  <div><p style={{color:"#6ee7b7",fontWeight:600,fontSize:14}}>In Transit</p><p style={{color:"#9A7540",fontSize:12}}>{trackResult.location}</p></div>
+                  <div style={{textAlign:"right"}}><p style={{color:"#9A7540",fontSize:11}}>ETA</p><p style={{color:"#FFB84D",fontWeight:600,fontSize:13}}>{trackResult.eta}</p></div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  {trackResult.steps.map((s,i)=>(
+                    <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start"}}>
+                      <div style={{width:24,height:24,borderRadius:12,background:s.done?"#FF9A1A":"rgba(42,28,6,.7)",border:`2px solid ${s.done?"#FF9A1A":"rgba(69,48,13,.4)"}`,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,marginTop:2}}>
+                        {s.done&&<Icon name="check" size={11} style={{color:"#0a0806"}}/>}
+                      </div>
+                      <div>
+                        <p style={{color:s.done?"#E8DCC8":"#7D5C28",fontSize:13,fontWeight:s.done?600:400}}>{s.label}</p>
+                        <p style={{color:"#614518",fontSize:11}}>{s.date}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── AI MATCHMAKING ───────────────────────────────────────────
+function MatchmakingPage({ user }) {
+  const [step, setStep] = useState(1)
+  const [prefs, setPrefs] = useState({ company:user?.company||"", industry:"Agriculture", country:user?.country||"Ethiopia", seeking:"Buyers", region:"Europe", size:"SME (25-250)", volume:"$100K+" })
+  const [loading, setLoading] = useState(false)
+  const [matches, setMatches] = useState([])
+  const [aiInsight, setAiInsight] = useState("")
+  const [aiLoading, setAiLoading] = useState(false)
+  const set = (k,v)=>setPrefs(p=>({...p,[k]:v}))
+  const INDUSTRIES = ["Agriculture","Textiles","Technology","Manufacturing","Logistics","Energy","Finance"]
+  const SEEKING = ["Buyers","Suppliers","Investors","Distributors","Partners"]
+
+  const runMatch = async () => {
+    setLoading(true)
+    // Fetch real registered exhibitors as candidates
+    const exhibitors = await getDocs("users",[{type:"where",f:"role",op:"==",v:"exhibitor"}]).catch(()=>[])
+    await new Promise(r=>setTimeout(r,1000))
+    const candidates = exhibitors.length>0
+      ? exhibitors.slice(0,4).map(e=>({...e, matchScore:Math.floor(Math.random()*15+80), matchReason:"Based on your industry vertical and target markets — strong alignment detected."})).sort((a,b)=>b.matchScore-a.matchScore)
+      : []
+    setMatches(candidates)
+    setLoading(false); setStep(3)
+    if (candidates.length>0) getAiInsight(candidates[0])
+  }
+
+  const getAiInsight = async (topMatch) => {
+    setAiLoading(true)
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:180,messages:[{role:"user",content:`In 2 sentences, explain why a ${prefs.industry} company in ${prefs.country} looking for ${prefs.seeking} would benefit from partnering with ${topMatch.name} (${topMatch.company||"independent"}) from ${topMatch.country||"Africa"}. Focus on African trade synergy. Be specific and concise.`}]})})
+      const data = await res.json()
+      setAiInsight(data.content?.[0]?.text||"")
+    } catch { setAiInsight("Strong trade synergy detected based on complementary profiles and overlapping target markets in your preferred regions.") }
+    setAiLoading(false)
+  }
+
+  return (
+    <div style={{maxWidth:900,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <div style={{textAlign:"center",marginBottom:40}}>
+        <Tag>AI-Powered</Tag>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:42,fontWeight:800,color:"#FFD59A",margin:"12px 0 10px"}}>Business Matchmaking</h1>
+        <p style={{color:"#9A7540",fontSize:15,maxWidth:480,margin:"0 auto"}}>Our AI matches you with real registered businesses on AfriExpo based on your trade profile</p>
+      </div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:12,marginBottom:40}}>
+        {[["1","Your Business"],["2","Preferences"],["3","Matches"]].map(([n,label],i)=>(
+          <div key={n} style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:32,height:32,borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,background:step>i+1?"#FF9A1A":step===i+1?"#FF9A1A":"rgba(42,28,6,.7)",color:step>=i+1?"#0a0806":"#614518",border:`2px solid ${step>=i+1?"#FF9A1A":"rgba(69,48,13,.4)"}`,transition:"all .3s"}}>
+              {step>i+1?<Icon name="check" size={14}/>:n}
+            </div>
+            <span style={{fontSize:13,fontWeight:500,color:step>=i+1?"#FFB84D":"#614518"}}>{label}</span>
+            {i<2&&<div style={{width:40,height:2,background:step>i+1?"#FF9A1A":"rgba(69,48,13,.3)",borderRadius:1,transition:"background .3s"}}/>}
+          </div>
+        ))}
+      </div>
+      {step===1&&(
+        <div className="card fu" style={{padding:32,maxWidth:560,margin:"0 auto"}}>
+          <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:18,marginBottom:24}}>Tell us about your business</h2>
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Company Name</label>
+              <input className="inp" value={prefs.company} onChange={e=>set("company",e.target.value)} placeholder="e.g. Habesha Exports PLC"/></div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+              <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Industry</label>
+                <select className="inp" value={prefs.industry} onChange={e=>set("industry",e.target.value)}>
+                  {INDUSTRIES.map(i=><option key={i}>{i}</option>)}
+                </select></div>
+              <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Country</label>
+                <select className="inp" value={prefs.country} onChange={e=>set("country",e.target.value)}>
+                  {["Ethiopia","Kenya","Tanzania","Rwanda","Uganda","Ghana","Nigeria"].map(c=><option key={c}>{c}</option>)}
+                </select></div>
+            </div>
+            <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:8}}>Looking for</label>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {SEEKING.map(s=>(
+                  <button key={s} onClick={()=>set("seeking",s)} style={{padding:"7px 14px",borderRadius:20,border:`1.5px solid ${prefs.seeking===s?"#FF9A1A":"rgba(69,48,13,.4)"}`,background:prefs.seeking===s?"rgba(255,154,26,.1)":"transparent",color:prefs.seeking===s?"#FF9A1A":"#9A7540",fontSize:13,cursor:"pointer"}}>
+                    {s}
+                  </button>
+                ))}
+              </div></div>
+            <button className="btn btn-p" onClick={()=>setStep(2)} style={{justifyContent:"center",marginTop:8}}>Continue →</button>
+          </div>
+        </div>
+      )}
+      {step===2&&(
+        <div className="card fu" style={{padding:32,maxWidth:560,margin:"0 auto"}}>
+          <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:18,marginBottom:24}}>Target Preferences</h2>
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Target Region</label>
+              <select className="inp" value={prefs.region} onChange={e=>set("region",e.target.value)}>
+                {["Europe","North America","Middle East","East Asia","Africa","Global"].map(r=><option key={r}>{r}</option>)}
+              </select></div>
+            <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Partner Size</label>
+              <select className="inp" value={prefs.size} onChange={e=>set("size",e.target.value)}>
+                {["Startup (<25)","SME (25-250)","Mid-Market (250-1000)","Enterprise (1000+)"].map(s=><option key={s}>{s}</option>)}
+              </select></div>
+            <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:8}}>Target Trade Volume</label>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {["<$50K","$50K–$100K","$100K+","$500K+","$1M+"].map(v=>(
+                  <button key={v} onClick={()=>set("volume",v)} style={{padding:"7px 14px",borderRadius:20,border:`1.5px solid ${prefs.volume===v?"#FF9A1A":"rgba(69,48,13,.4)"}`,background:prefs.volume===v?"rgba(255,154,26,.1)":"transparent",color:prefs.volume===v?"#FF9A1A":"#9A7540",fontSize:13,cursor:"pointer"}}>{v}</button>
+                ))}
+              </div></div>
+            <div style={{display:"flex",gap:10,marginTop:8}}>
+              <button className="btn btn-g" onClick={()=>setStep(1)}>← Back</button>
+              <button className="btn btn-p" onClick={runMatch} disabled={loading} style={{flex:1,justifyContent:"center"}}>
+                {loading?<><Spin size={14}/> Finding matches…</>:"Find My Matches →"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {step===3&&(
+        <div className="fu">
+          {aiInsight&&(
+            <div className="card" style={{padding:20,marginBottom:24,background:"rgba(255,154,26,.05)",borderColor:"rgba(255,154,26,.2)"}}>
+              <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+                <div style={{width:32,height:32,borderRadius:9,background:"rgba(255,154,26,.15)",border:"1px solid rgba(255,154,26,.3)",display:"flex",alignItems:"center",justifyContent:"center",color:"#FF9A1A",flexShrink:0}}><Icon name="zap" size={15}/></div>
+                <div>
+                  <p style={{color:"#FFB84D",fontSize:12,fontWeight:600,marginBottom:4}}>AI Trade Insight</p>
+                  {aiLoading?<Spin size={14}/>:<p style={{color:"#B89660",fontSize:14,lineHeight:1.7}}>{aiInsight}</p>}
+                </div>
+              </div>
+            </div>
+          )}
+          {matches.length===0?(
+            <div className="card" style={{padding:48,textAlign:"center"}}>
+              <div style={{fontSize:48,marginBottom:16}}>🔍</div>
+              <h3 style={{color:"#E8DCC8",marginBottom:8}}>No Exhibitors Yet</h3>
+              <p style={{color:"#9A7540",fontSize:14,marginBottom:20}}>Be among the first to register as an exhibitor and get matched with buyers!</p>
+              <button className="btn btn-p" onClick={()=>setStep(1)}>Try Different Preferences</button>
+            </div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:14}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:18}}>{matches.length} Matches Found</h2>
+                <button className="btn btn-g" onClick={()=>setStep(1)} style={{fontSize:12}}>Refine Search</button>
+              </div>
+              {matches.map((m,i)=>(
+                <div key={m.id} className="card cardh" style={{padding:24}}>
+                  <div style={{display:"flex",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
+                    <div style={{display:"flex",gap:14,alignItems:"flex-start"}}>
+                      <Av name={m.name} color={["#92400e","#14532d","#1e3a5f","#3b0764"][i%4]} size={52}/>
+                      <div>
+                        <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:16,marginBottom:4}}>{m.name}</h3>
+                        <p style={{color:"#7D5C28",fontSize:13,marginBottom:6}}>{m.company||"Independent"} · {m.country||"Africa"}</p>
+                        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{(m.tags||[]).slice(0,3).map(t=><Tag key={t}>{t}</Tag>)}</div>
+                      </div>
+                    </div>
+                    <div style={{textAlign:"center",minWidth:90}}>
+                      <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:"#FF9A1A"}}>{m.matchScore}%</div>
+                      <div style={{color:"#9A7540",fontSize:11}}>Match Score</div>
+                    </div>
+                  </div>
+                  <div style={{marginTop:14,display:"flex",gap:10,flexWrap:"wrap"}}>
+                    <button className="btn btn-p" style={{fontSize:12,padding:"8px 16px"}}><Icon name="msg" size={13}/>Connect</button>
+                    <button className="btn btn-g" style={{fontSize:12,padding:"8px 16px"}}><Icon name="eye" size={13}/>View Profile</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── MESSAGES ─────────────────────────────────────────────────
+function MessagesPage({ user }) {
+  const [conversations, setConversations] = useState([])
+  const [activeId, setActiveId] = useState(null)
+  const [messages, setMessages] = useState([])
+  const [newMsg, setNewMsg] = useState("")
+  const [sending, setSending] = useState(false)
+  const [newConv, setNewConv] = useState(false)
+  const [newConvWith, setNewConvWith] = useState("")
+  const bottomRef = useRef(null)
+
+  // Load conversations
+  useEffect(()=>{
+    if (!user?.id||user.isGuest) return
+    const unsub = onSnap("conversations",[{type:"where",f:"participants",op:"array-contains",v:user.id},{type:"orderBy",f:"updatedAt",dir:"desc"}], docs=>setConversations(docs))
+    return ()=>unsub?.()
+  },[user?.id])
+
+  // Load messages for active conv
+  useEffect(()=>{
+    if (!activeId) return
+    const unsub = onSnap("messages",[{type:"where",f:"conversationId",op:"==",v:activeId},{type:"orderBy",f:"createdAt",dir:"asc"}], docs=>setMessages(docs))
+    return ()=>unsub?.()
+  },[activeId])
+
+  useEffect(()=>{ bottomRef.current?.scrollIntoView({behavior:"smooth"}) },[messages])
+
+  const active = conversations.find(c=>c.id===activeId)
+
+  const send = async () => {
+    if (!newMsg.trim()||!activeId) return
+    setSending(true)
+    const m = { conversationId:activeId, senderId:user.id, senderName:user.name, text:newMsg.trim(), createdAt:ts() }
+    setNewMsg("")
+    try {
+      await addDoc("messages",m)
+      await updateDoc("conversations",activeId,{lastMessage:m.text,updatedAt:ts()})
+    } catch {}
+    setSending(false)
+  }
+
+  const startConv = async () => {
+    if (!newConvWith.trim()) return
+    const c = { participants:[user.id], participantNames:[user.name], withName:newConvWith.trim(), lastMessage:"", createdAt:ts(), updatedAt:ts(), creatorId:user.id }
+    try {
+      const ref = await addDoc("conversations",c)
+      setActiveId(ref.id)
+    } catch {}
+    setNewConv(false); setNewConvWith("")
+  }
+
+  if (user?.isGuest) return (
+    <div style={{maxWidth:600,margin:"80px auto",padding:24,textAlign:"center"}}>
+      <div className="card" style={{padding:48}}>
+        <Icon name="msg" size={48} style={{color:"#614518",margin:"0 auto 16px",display:"block"}}/>
+        <h2 style={{color:"#E8DCC8",marginBottom:8}}>Sign in to access messages</h2>
+        <p style={{color:"#9A7540",fontSize:14}}>Create a free account to start B2B conversations with African businesses.</p>
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{maxWidth:1200,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700,color:"#FFD59A",marginBottom:20}}>Messages</h1>
+      <div style={{display:"grid",gridTemplateColumns:"300px 1fr",gap:16,height:"calc(100vh - 220px)"}}>
+        {/* Sidebar */}
+        <div className="card" style={{display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          <div style={{padding:12,borderBottom:"1px solid rgba(69,48,13,.3)"}}>
+            <button className="btn btn-p" onClick={()=>setNewConv(!newConv)} style={{width:"100%",justifyContent:"center",fontSize:12}}>
+              <Icon name="plus" size={14}/> New Conversation
+            </button>
+          </div>
+          {newConv&&(
+            <div style={{padding:12,borderBottom:"1px solid rgba(69,48,13,.3)",background:"rgba(42,28,6,.3)"}}>
+              <input className="inp" value={newConvWith} onChange={e=>setNewConvWith(e.target.value)} placeholder="Company or person name..." style={{marginBottom:8,fontSize:12}}/>
+              <div style={{display:"flex",gap:8}}>
+                <button className="btn btn-p" onClick={startConv} style={{flex:1,justifyContent:"center",fontSize:12,padding:"7px"}}>Start</button>
+                <button className="btn btn-g" onClick={()=>setNewConv(false)} style={{fontSize:12,padding:"7px 10px"}}>✕</button>
+              </div>
+            </div>
+          )}
+          <div style={{flex:1,overflowY:"auto"}}>
+            {conversations.length===0&&<div style={{padding:20,textAlign:"center",color:"#7D5C28",fontSize:13}}>No conversations yet. Start one above!</div>}
+            {conversations.map(c=>(
+              <div key={c.id} onClick={()=>setActiveId(c.id)} style={{padding:"12px 14px",borderBottom:"1px solid rgba(42,28,6,.5)",cursor:"pointer",background:activeId===c.id?"rgba(138,73,0,.15)":"transparent",display:"flex",alignItems:"center",gap:10}}>
+                <Av name={c.withName||"?"} color="#7c3d12" size={36}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <p style={{fontWeight:600,color:"#E8DCC8",fontSize:13}}>{c.withName}</p>
+                  <p style={{color:"#7D5C28",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.lastMessage||"Start a conversation"}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat area */}
+        {active?(
+          <div className="card" style={{display:"flex",flexDirection:"column",overflow:"hidden"}}>
+            <div style={{padding:"12px 18px",borderBottom:"1px solid rgba(69,48,13,.3)",display:"flex",alignItems:"center",gap:12}}>
+              <Av name={active.withName||"?"} color="#7c3d12" size={36}/>
+              <div style={{flex:1}}>
+                <p style={{fontWeight:600,color:"#E8DCC8",fontSize:14}}>{active.withName}</p>
+                <p style={{color:"#7D5C28",fontSize:11}}>B2B Conversation</p>
+              </div>
+              <button className="btn btn-g" style={{padding:"6px 12px",fontSize:12}}><Icon name="calendar" size={13}/> Schedule Meeting</button>
+            </div>
+            <div style={{flex:1,overflowY:"auto",padding:"16px 20px",display:"flex",flexDirection:"column",gap:10}}>
+              {messages.length===0&&<div style={{textAlign:"center",color:"#614518",fontSize:13,padding:20}}>Say hello to start the conversation!</div>}
+              {messages.map(m=>(
+                <div key={m.id} style={{display:"flex",justifyContent:m.senderId===user.id?"flex-end":"flex-start"}}>
+                  <div className={m.senderId===user.id?"msgme":"msgthem"} style={{maxWidth:"70%",padding:"10px 14px",fontSize:13,color:"#E8DCC8",lineHeight:1.6}}>
+                    {m.senderId!==user.id&&<p style={{fontSize:10,color:"#FF9A1A",marginBottom:4,fontWeight:600}}>{m.senderName}</p>}
+                    <p>{m.text}</p>
+                  </div>
+                </div>
+              ))}
+              <div ref={bottomRef}/>
+            </div>
+            <div style={{padding:"12px 16px",borderTop:"1px solid rgba(69,48,13,.3)",display:"flex",gap:10}}>
+              <input className="inp" value={newMsg} onChange={e=>setNewMsg(e.target.value)} placeholder="Type a message…" style={{flex:1}} onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&send()}/>
+              <button className="btn btn-p" onClick={send} disabled={sending||!newMsg.trim()} style={{flexShrink:0}}>
+                {sending?<Spin size={14}/>:<Icon name="send" size={15}/>}
+              </button>
+            </div>
+          </div>
+        ):(
+          <div className="card" style={{display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12}}>
+            <Icon name="msg" size={40} style={{color:"#614518"}}/>
+            <p style={{color:"#7D5C28",fontSize:14}}>Select a conversation or start a new one</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────
+function DashboardPage({ user, setPage }) {
+  const [tab, setTab] = useState("overview")
+  const [meetings, setMeetings] = useState([])
+  const [listings, setListings] = useState([])
+  const [bookingForm, setBookingForm] = useState({with:"",date:"",time:"",topic:""})
+  const [bookingMsg, setBookingMsg] = useState("")
+  const [stats, setStats] = useState({views:0,inquiries:0,meetingsCount:0})
+
+  useEffect(()=>{
+    if (!user?.id||user.isGuest) return
+    getDocs("meetings",[{type:"where",f:"userId",op:"==",v:user.id},{type:"orderBy",f:"createdAt",dir:"desc"}]).then(setMeetings).catch(()=>{})
+    getDocs("marketplace",[{type:"where",f:"sellerId",op:"==",v:user.id}]).then(setListings).catch(()=>{})
+  },[user?.id,tab])
+
+  const bookMeeting = async () => {
+    if (!bookingForm.with||!bookingForm.date) return
+    const entry = {...bookingForm,userId:user.id,userName:user.name,status:"confirmed",createdAt:ts()}
+    try {
+      const ref = await addDoc("meetings",entry)
+      setMeetings(m=>[{...entry,id:ref.id},...m])
+      await addDoc("notifications",{userId:user.id,type:"meeting",text:`Meeting booked with ${bookingForm.with} on ${bookingForm.date}`,read:false,createdAt:ts()}).catch(()=>{})
+    } catch { setMeetings(m=>[{...entry,id:`l_${Date.now()}`},...m]) }
+    setBookingForm({with:"",date:"",time:"",topic:""}); setBookingMsg("Meeting booked!")
+    setTimeout(()=>setBookingMsg(""),3000)
+  }
+
+  const cancelMeeting = async (id) => {
+    await deleteDoc("meetings",id).catch(()=>{})
+    setMeetings(m=>m.filter(x=>x.id!==id))
+  }
+
+  const TABS = ["overview","meetings","my listings","profile settings"]
+
+  if (user?.isGuest) return (
+    <div style={{maxWidth:600,margin:"80px auto",padding:24,textAlign:"center"}}>
+      <div className="card" style={{padding:48}}>
+        <Icon name="building" size={48} style={{color:"#614518",margin:"0 auto 16px",display:"block"}}/>
+        <h2 style={{color:"#E8DCC8",marginBottom:8}}>Sign in to access your dashboard</h2>
+        <p style={{color:"#9A7540",fontSize:14,marginBottom:20}}>Create a free account to manage your booth, meetings, and trade connections.</p>
+        <button className="btn btn-p" onClick={()=>setPage("home")} style={{justifyContent:"center"}}>Sign Up Free →</button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div style={{maxWidth:1280,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",flexWrap:"wrap",gap:14,marginBottom:28}}>
+        <div>
+          <p style={{color:"#614518",fontSize:13}}>Welcome back,</p>
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700,color:"#f5f0e8"}}>{user.company||user.name}</h1>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}>
+            {user.verified&&<><Icon name="check" size={13} style={{color:"#34d399"}}/><span style={{color:"#34d399",fontSize:12}}>Verified</span></>}
+            <span style={{color:"#614518",fontSize:12}}>· {user.role}</span>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:10}}>
+          <button className="btn btn-p" onClick={()=>setTab("profile settings")} style={{fontSize:13}}>Edit Profile <Icon name="edit" size={13}/></button>
+          <button className="btn btn-g" onClick={()=>setPage("messages")} style={{fontSize:13}}><Icon name="msg" size={13}/> Messages</button>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:2,background:"rgba(19,13,2,.5)",borderRadius:12,padding:4,marginBottom:28,width:"fit-content",border:"1px solid rgba(69,48,13,.3)"}} className="sh">
+        {TABS.map(t=>(
+          <button key={t} onClick={()=>setTab(t)} style={{padding:"7px 16px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:tab===t?"#FF9A1A":"transparent",color:tab===t?"#0a0806":"#9A7540",transition:"all .15s",whiteSpace:"nowrap",textTransform:"capitalize"}}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {tab==="overview"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:20}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(160px,1fr))",gap:14}}>
+            {[["building","My Role",user.role||"visitor","Get verified","#FF9A1A"],["package","My Listings",listings.length,"Marketplace items","#34d399"],["calendar","Meetings",meetings.length,"Scheduled","#FFB84D"],["map","Country",user.country||"—","Location","#9A7540"]].map(([ic,label,value,sub,c])=>(
+              <div key={label} className="card" style={{padding:20}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+                  <p style={{color:"#7D5C28",fontSize:12}}>{label}</p><Icon name={ic} size={15} style={{color:"#FF9A1A"}}/>
+                </div>
+                <p style={{fontSize:22,fontWeight:700,color:"#f5f0e8",marginBottom:4,textTransform:"capitalize"}}>{value}</p>
+                <p style={{fontSize:11,color:c,fontWeight:500}}>{sub}</p>
+              </div>
+            ))}
+          </div>
+          <div className="card" style={{padding:24}}>
+            <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:15,marginBottom:16}}>Your Profile</h3>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:16}}>
+              {[["Name",user.name],["Email",user.email],["Company",user.company||"—"],["Category",user.category||"—"],["Country",user.country||"—"],["Bio",user.bio||"—"]].map(([l,v])=>(
+                <div key={l}>
+                  <p style={{color:"#614518",fontSize:11,marginBottom:2}}>{l}</p>
+                  <p style={{color:"#E8DCC8",fontSize:13}}>{v}</p>
+                </div>
+              ))}
+            </div>
+            {user.description&&<div style={{marginTop:16,paddingTop:16,borderTop:"1px solid rgba(69,48,13,.3)"}}>
+              <p style={{color:"#614518",fontSize:11,marginBottom:4}}>Description</p>
+              <p style={{color:"#9A7540",fontSize:13,lineHeight:1.7}}>{user.description}</p>
+            </div>}
+          </div>
+          {!user.verified&&<div className="card" style={{padding:20,borderColor:"rgba(255,154,26,.3)",background:"rgba(255,154,26,.04)"}}>
+            <div style={{display:"flex",gap:12,alignItems:"center"}}>
+              <Icon name="shield" size={20} style={{color:"#FF9A1A",flexShrink:0}}/>
+              <div>
+                <p style={{fontWeight:600,color:"#FFB84D",fontSize:14}}>Get Verified</p>
+                <p style={{color:"#9A7540",fontSize:13}}>Verified businesses get 3x more inquiries. Complete your profile to apply.</p>
+              </div>
+              <button className="btn btn-p" onClick={()=>setTab("profile settings")} style={{flexShrink:0,fontSize:12}}>Complete Profile</button>
+            </div>
+          </div>}
+        </div>
+      )}
+
+      {tab==="meetings"&&(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 340px",gap:20}}>
+          <div>
+            <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:18,marginBottom:16}}>Your Meetings</h2>
+            {meetings.length===0?<div style={{textAlign:"center",padding:60,color:"#614518"}}>
+              <Icon name="calendar" size={40} style={{margin:"0 auto 12px",display:"block"}}/>
+              <p>No meetings scheduled. Book one on the right!</p>
+            </div>:
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              {meetings.map(m=>(
+                <div key={m.id} className="card" style={{padding:18,display:"flex",alignItems:"center",gap:14}}>
+                  <Av name={m.with||"?"} color="#7c3d12" size={44}/>
+                  <div style={{flex:1}}>
+                    <p style={{fontWeight:600,color:"#E8DCC8",fontSize:14}}>{m.with}</p>
+                    <p style={{color:"#9A7540",fontSize:13}}>{m.topic||"Business Meeting"}</p>
+                    <p style={{color:"#FF9A1A",fontSize:12,marginTop:3}}>{m.date}{m.time&&` at ${m.time} EAT`}</p>
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button className="btn btn-p" style={{fontSize:12,padding:"7px 14px"}}><Icon name="video" size={13}/> Join</button>
+                    <button className="btn btn-d" style={{fontSize:12,padding:"7px 14px"}} onClick={()=>cancelMeeting(m.id)}>Cancel</button>
+                  </div>
+                </div>
+              ))}
+            </div>}
+          </div>
+          <div className="card" style={{padding:22,alignSelf:"flex-start"}}>
+            <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:15,marginBottom:16}}><Icon name="plus" size={15} style={{color:"#FF9A1A"}}/> Book Meeting</h3>
+            <div style={{display:"flex",flexDirection:"column",gap:12}}>
+              <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>With (Company / Person)</label>
+                <input className="inp" value={bookingForm.with} onChange={e=>setBookingForm(f=>({...f,with:e.target.value}))} placeholder="e.g. Hans Mueller GmbH"/></div>
+              <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>Date</label>
+                <input className="inp" type="date" value={bookingForm.date} onChange={e=>setBookingForm(f=>({...f,date:e.target.value}))}/></div>
+              <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>Time (EAT)</label>
+                <input className="inp" type="time" value={bookingForm.time} onChange={e=>setBookingForm(f=>({...f,time:e.target.value}))}/></div>
+              <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>Topic</label>
+                <input className="inp" value={bookingForm.topic} onChange={e=>setBookingForm(f=>({...f,topic:e.target.value}))} placeholder="e.g. Product Demo"/></div>
+              {bookingMsg&&<div style={{background:"rgba(6,78,59,.3)",border:"1px solid rgba(52,211,153,.2)",borderRadius:8,padding:"8px 12px",color:"#6ee7b7",fontSize:12}}><Icon name="check" size={12}/> {bookingMsg}</div>}
+              <button className="btn btn-p" onClick={bookMeeting} disabled={!bookingForm.with||!bookingForm.date} style={{justifyContent:"center"}}>
+                <Icon name="calendar" size={14}/> Confirm Booking
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab==="my listings"&&(
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:18}}>My Marketplace Listings</h2>
+            <button className="btn btn-p" onClick={()=>setPage("marketplace")} style={{fontSize:13}}><Icon name="plus" size={13}/> Add Listing</button>
+          </div>
+          {listings.length===0?<div style={{textAlign:"center",padding:60,color:"#614518"}}>
+            <Icon name="package" size={40} style={{margin:"0 auto 12px",display:"block"}}/>
+            <p>No listings yet. <span style={{color:"#FF9A1A",cursor:"pointer"}} onClick={()=>setPage("marketplace")}>Add your first product!</span></p>
+          </div>:
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:14}}>
+            {listings.map(l=>(
+              <div key={l.id} className="card" style={{padding:20}}>
+                <Tag>{l.category}</Tag>
+                <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:15,margin:"10px 0 6px"}}>{l.title}</h3>
+                <p style={{color:"#FF9A1A",fontWeight:700,fontSize:16,marginBottom:8}}>{l.price}</p>
+                <div style={{display:"flex",gap:8}}>
+                  <button className="btn btn-d" onClick={()=>deleteDoc("marketplace",l.id).then(()=>setListings(ls=>ls.filter(x=>x.id!==l.id)))} style={{fontSize:12,padding:"6px 12px"}}><Icon name="trash" size={12}/> Remove</button>
+                </div>
+              </div>
+            ))}
+          </div>}
+        </div>
+      )}
+
+      {tab==="profile settings"&&<ProfileSettings user={user}/>}
+    </div>
+  )
+}
+
+// ─── PROFILE SETTINGS (inside dashboard) ─────────────────────
+function ProfileSettings({ user }) {
+  const [form, setForm] = useState({
+    name:user.name||"", company:user.company||"", role:user.role||"visitor",
+    country:user.country||"", bio:user.bio||"", phone:user.phone||"",
+    website:user.website||"", category:user.category||"", description:user.description||"",
+    seeking:user.seeking||"",
+    products:(user.products||[]).join("\n"),
+    tags:(user.tags||[]).join(", "),
+  })
+  const [saving, setSaving] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [err, setErr] = useState("")
+
+  const save = async () => {
+    setSaving(true); setErr(""); setSuccess(false)
+    try {
+      const productsArr = form.products.split("\n").map(s=>s.trim()).filter(Boolean)
+      const tagsArr = form.tags.split(",").map(s=>s.trim()).filter(Boolean)
+      const updates = { ...form, products:productsArr, tags:tagsArr, updatedAt:ts() }
+      delete updates.products; delete updates.tags
+      await updateDoc("users",user.id,{ ...form, products:productsArr, tags:tagsArr, updatedAt:ts() })
+      if (auth()?.currentUser) await auth().currentUser.updateProfile({ displayName: form.name }).catch(()=>{})
+      setSuccess(true); setTimeout(()=>setSuccess(false),3000)
+    } catch(e) { setErr(e.message||"Failed to save.") }
+    setSaving(false)
+  }
+
+  const ROLES = ["exhibitor","buyer","investor","logistics","visitor"]
+  const COUNTRIES = ["Ethiopia","Kenya","Rwanda","Tanzania","Uganda","Ghana","Nigeria","South Africa","Egypt","Morocco","Senegal","Other"]
+  const CATEGORIES = ["Agriculture & Food","Textiles & Apparel","Manufacturing","Technology & ICT","Logistics & Transport","Energy & Sustainability","Finance & Banking","Leather & Crafts","Healthcare","Other"]
+
+  return (
+    <div style={{maxWidth:640}}>
+      {success&&<div style={{background:"rgba(6,78,59,.3)",border:"1px solid rgba(52,211,153,.2)",borderRadius:10,padding:"12px 16px",color:"#6ee7b7",fontSize:13,marginBottom:16,display:"flex",alignItems:"center",gap:8}}><Icon name="check" size={14}/> Profile saved successfully!</div>}
+      {err&&<div style={{background:"rgba(127,29,29,.3)",border:"1px solid rgba(252,165,165,.2)",borderRadius:10,padding:"12px 16px",color:"#fca5a5",fontSize:13,marginBottom:16}}>{err}</div>}
+      <div className="card" style={{padding:28,marginBottom:16}}>
+        <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:16,marginBottom:20}}>Personal Info</h3>
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Full Name</label>
+            <input className="inp" value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}/></div>
+          <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Company / Organisation</label>
+            <input className="inp" value={form.company} onChange={e=>setForm(f=>({...f,company:e.target.value}))}/></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Role</label>
+              <select className="inp" value={form.role} onChange={e=>setForm(f=>({...f,role:e.target.value}))}>
+                {ROLES.map(r=><option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)}
+              </select></div>
+            <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Country</label>
+              <select className="inp" value={form.country} onChange={e=>setForm(f=>({...f,country:e.target.value}))}>
+                <option value="">Select country…</option>
+                {COUNTRIES.map(c=><option key={c}>{c}</option>)}
+              </select></div>
+          </div>
+          <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Industry Category</label>
+            <select className="inp" value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
+              <option value="">Select category…</option>
+              {CATEGORIES.map(c=><option key={c}>{c}</option>)}
+            </select></div>
+          <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Phone</label>
+            <input className="inp" value={form.phone} onChange={e=>setForm(f=>({...f,phone:e.target.value}))} placeholder="+251..."/></div>
+          <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Website</label>
+            <input className="inp" value={form.website} onChange={e=>setForm(f=>({...f,website:e.target.value}))} placeholder="https://..."/></div>
+        </div>
+      </div>
+      <div className="card" style={{padding:28,marginBottom:16}}>
+        <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:16,marginBottom:20}}>Booth Info</h3>
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Short Bio</label>
+            <input className="inp" value={form.bio} onChange={e=>setForm(f=>({...f,bio:e.target.value}))} placeholder="e.g. Founder of..."/></div>
+          <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Company Description (shown on your public profile)</label>
+            <textarea className="inp" value={form.description} onChange={e=>setForm(f=>({...f,description:e.target.value}))} placeholder="Describe your company, what you export, your target markets…" style={{minHeight:100}}/></div>
+          <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Products / Services (one per line)</label>
+            <textarea className="inp" value={form.products} onChange={e=>setForm(f=>({...f,products:e.target.value}))} placeholder={"Organic Cotton Fabric\nHabesha Kemis\nIndustrial Textiles"}/></div>
+          <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Tags (comma-separated)</label>
+            <input className="inp" value={form.tags} onChange={e=>setForm(f=>({...f,tags:e.target.value}))} placeholder="Exporter, Organic, Fair Trade, ISO Certified"/></div>
+          <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:6}}>Seeking</label>
+            <input className="inp" value={form.seeking} onChange={e=>setForm(f=>({...f,seeking:e.target.value}))} placeholder="e.g. EU Distributors, Luxury Brand Partners, Roasters"/></div>
+        </div>
+      </div>
+      <button className="btn btn-p" onClick={save} disabled={saving} style={{justifyContent:"center"}}>
+        {saving?<Spin size={14}/>:"Save Profile Changes"}
+      </button>
+    </div>
+  )
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────
+function AdminPage({ user }) {
+  const [tab, setTab] = useState("overview")
+  const [users, setUsers] = useState([])
+  const [expos, setExpos] = useState([])
+  const [marketplace, setMarketplace] = useState([])
+  const [meetings, setMeetings] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [search, setSearch] = useState("")
+  const [expoForm, setExpoForm] = useState({ title:"", subtitle:"", date:"", location:"", category:"Multi-Sector", status:"upcoming", exhibitors:0, visitors:0, countries:0, sectors:"", description:"" })
+  const [addingExpo, setAddingExpo] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  useEffect(()=>{
+    if (!['overview','users','exhibitions','marketplace','meetings'].includes(tab)) return
+    setLoading(true)
+    const loads = {
+      overview: ()=>Promise.all([getDocs("users",[]).catch(()=>[]),getDocs("exhibitions",[]).catch(()=>[]),getDocs("marketplace",[]).catch(()=>[]),getDocs("meetings",[]).catch(()=>[])]).then(([u,e,m,mt])=>{setUsers(u);setExpos(e);setMarketplace(m);setMeetings(mt)}),
+      users: ()=>getDocs("users",[{type:"orderBy",f:"createdAt",dir:"desc"}]).then(setUsers).catch(()=>{}),
+      exhibitions: ()=>getDocs("exhibitions",[]).then(setExpos).catch(()=>{}),
+      marketplace: ()=>getDocs("marketplace",[{type:"orderBy",f:"createdAt",dir:"desc"}]).then(setMarketplace).catch(()=>{}),
+      meetings: ()=>getDocs("meetings",[{type:"orderBy",f:"createdAt",dir:"desc"}]).then(setMeetings).catch(()=>{}),
+    }
+    ;(loads[tab]||loads.overview)().finally(()=>setLoading(false))
+  },[tab])
+
+  const verify = async (uid) => {
+    await updateDoc("users",uid,{verified:true}).catch(()=>{})
+    setUsers(u=>u.map(x=>x.id===uid?{...x,verified:true}:x))
+  }
+  const deleteUser = async (uid) => {
+    if (!confirm("Delete this user?")) return
+    await deleteDoc("users",uid).catch(()=>{})
+    setUsers(u=>u.filter(x=>x.id!==uid))
+  }
+  const deleteExpo = async (id) => {
+    if (!confirm("Delete this exhibition?")) return
+    await deleteDoc("exhibitions",id).catch(()=>{})
+    setExpos(e=>e.filter(x=>x.id!==id))
+  }
+  const addExpo = async () => {
+    if (!expoForm.title) return
+    setSaving(true)
+    try {
+      const data = { ...expoForm, sectors:expoForm.sectors.split(",").map(s=>s.trim()).filter(Boolean), exhibitors:Number(expoForm.exhibitors)||0, visitors:Number(expoForm.visitors)||0, countries:Number(expoForm.countries)||0, createdAt:ts() }
+      const ref = await addDoc("exhibitions",data)
+      setExpos(e=>[{...data,id:ref.id},...e])
+      setAddingExpo(false); setExpoForm({ title:"",subtitle:"",date:"",location:"",category:"Multi-Sector",status:"upcoming",exhibitors:0,visitors:0,countries:0,sectors:"",description:"" })
+    } catch(e) { alert(e.message) }
+    setSaving(false)
+  }
+
+  const filteredUsers = users.filter(u=>!search||(u.name||"").toLowerCase().includes(search.toLowerCase())||(u.email||"").toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <div style={{maxWidth:1280,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:28}}>
+        <div style={{width:40,height:40,borderRadius:10,background:"rgba(255,154,26,.15)",border:"1px solid rgba(255,154,26,.3)",display:"flex",alignItems:"center",justifyContent:"center",color:"#FF9A1A"}}>
+          <Icon name="layers" size={18}/>
+        </div>
+        <div>
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:"#FFD59A"}}>Admin Panel</h1>
+          <p style={{color:"#9A7540",fontSize:12}}>AfriExpo Platform Management</p>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:2,background:"rgba(19,13,2,.5)",borderRadius:12,padding:4,marginBottom:28,width:"fit-content",border:"1px solid rgba(69,48,13,.3)"}}>
+        {[["overview","Overview"],["users","Users"],["exhibitions","Exhibitions"],["marketplace","Marketplace"],["meetings","Meetings"]].map(([id,label])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{padding:"7px 16px",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:600,background:tab===id?"#FF9A1A":"transparent",color:tab===id?"#0a0806":"#9A7540",whiteSpace:"nowrap"}}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {loading&&<div style={{textAlign:"center",padding:60}}><Spin size={28}/></div>}
+
+      {!loading&&tab==="overview"&&(
+        <div style={{display:"flex",flexDirection:"column",gap:20}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:14}}>
+            {[["users","Total Users",users.length,"Registered accounts"],["building","Exhibitors",users.filter(u=>u.role==="exhibitor").length,"Registered exhibitors"],["expo","Exhibitions",expos.length,"Platform events"],["shop","Listings",marketplace.length,"Marketplace items"],["calendar","Meetings",meetings.length,"Total meetings booked"]].map(([ic,l,v,s])=>(
+              <div key={l} className="card" style={{padding:20}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                  <p style={{color:"#7D5C28",fontSize:12}}>{l}</p><Icon name={ic} size={14} style={{color:"#FF9A1A"}}/>
+                </div>
+                <p style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700,color:"#FF9A1A"}}>{v}</p>
+                <p style={{fontSize:11,color:"#614518",marginTop:3}}>{s}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+            <div className="card" style={{padding:22}}>
+              <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:14,marginBottom:14}}>Recent Users</h3>
+              {users.slice(0,5).map(u=>(
+                <div key={u.id} style={{display:"flex",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(69,48,13,.2)",alignItems:"center"}}>
+                  <Av name={u.name} color="#7c3d12" size={28}/>
+                  <div style={{flex:1}}>
+                    <p style={{color:"#B89660",fontSize:12}}>{u.name}</p>
+                    <p style={{color:"#614518",fontSize:10}}>{u.role} · {u.email}</p>
+                  </div>
+                  {u.verified&&<Icon name="check" size={12} style={{color:"#34d399"}}/>}
+                </div>
+              ))}
+            </div>
+            <div className="card" style={{padding:22}}>
+              <h3 style={{fontWeight:600,color:"#E8DCC8",fontSize:14,marginBottom:14}}>Unverified Users</h3>
+              {users.filter(u=>!u.verified).length===0?<p style={{color:"#614518",fontSize:13}}>All users verified!</p>:
+              users.filter(u=>!u.verified).slice(0,5).map(u=>(
+                <div key={u.id} style={{display:"flex",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(69,48,13,.2)",alignItems:"center"}}>
+                  <Av name={u.name} color="#92400e" size={28}/>
+                  <div style={{flex:1}}>
+                    <p style={{color:"#B89660",fontSize:12}}>{u.name} · {u.role}</p>
+                    <p style={{color:"#614518",fontSize:10}}>{u.email}</p>
+                  </div>
+                  <button className="btn btn-p" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>verify(u.id)}>Verify</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!loading&&tab==="users"&&(
+        <div>
+          <div style={{display:"flex",gap:12,marginBottom:16}}>
+            <div style={{position:"relative",flex:1}}>
+              <Icon name="search" size={14} style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",color:"#614518"}}/>
+              <input className="inp" placeholder="Search users…" style={{paddingLeft:36}} value={search} onChange={e=>setSearch(e.target.value)}/>
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {filteredUsers.map(u=>(
+              <div key={u.id} className="card" style={{padding:"14px 18px",display:"flex",alignItems:"center",gap:14}}>
+                <Av name={u.name} color="#92400e" size={40}/>
+                <div style={{flex:1}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <p style={{fontWeight:600,color:"#E8DCC8",fontSize:14}}>{u.name}</p>
+                    {u.verified&&<Icon name="check" size={13} style={{color:"#34d399"}}/>}
+                  </div>
+                  <p style={{color:"#7D5C28",fontSize:12}}>{u.email} · {u.role} · {u.country||"Unknown"}</p>
+                  {u.company&&<p style={{color:"#614518",fontSize:11}}>{u.company}</p>}
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  {!u.verified&&<button className="btn btn-p" style={{fontSize:12,padding:"6px 12px"}} onClick={()=>verify(u.id)}>Verify</button>}
+                  {u.id!==user.id&&<button className="btn btn-d" style={{fontSize:12,padding:"6px 10px"}} onClick={()=>deleteUser(u.id)}><Icon name="trash" size={13}/></button>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loading&&tab==="exhibitions"&&(
+        <div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+            <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:18}}>All Exhibitions</h2>
+            <button className="btn btn-p" onClick={()=>setAddingExpo(!addingExpo)} style={{fontSize:13}}><Icon name="plus" size={14}/>New Exhibition</button>
+          </div>
+          {addingExpo&&(
+            <div className="card" style={{padding:24,marginBottom:20}}>
+              <h3 style={{fontWeight:600,color:"#E8DCC8",marginBottom:16}}>Create Exhibition</h3>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+                {[["title","Title *"],["subtitle","Subtitle"],["date","Date"],["location","Location"],["category","Category"],["status","Status"]].map(([k,l])=>(
+                  k==="status"?
+                  <div key={k}><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>{l}</label>
+                    <select className="inp" value={expoForm[k]} onChange={e=>setExpoForm(f=>({...f,[k]:e.target.value}))}>
+                      {["upcoming","live","completed"].map(s=><option key={s}>{s}</option>)}
+                    </select></div>:
+                  <div key={k}><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>{l}</label>
+                    <input className="inp" value={expoForm[k]} onChange={e=>setExpoForm(f=>({...f,[k]:e.target.value}))}/></div>
+                ))}
+                <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>Exhibitors</label><input className="inp" type="number" value={expoForm.exhibitors} onChange={e=>setExpoForm(f=>({...f,exhibitors:e.target.value}))}/></div>
+                <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>Expected Visitors</label><input className="inp" type="number" value={expoForm.visitors} onChange={e=>setExpoForm(f=>({...f,visitors:e.target.value}))}/></div>
+                <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>Countries</label><input className="inp" type="number" value={expoForm.countries} onChange={e=>setExpoForm(f=>({...f,countries:e.target.value}))}/></div>
+                <div><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>Sectors (comma-separated)</label><input className="inp" value={expoForm.sectors} onChange={e=>setExpoForm(f=>({...f,sectors:e.target.value}))}/></div>
+                <div style={{gridColumn:"1/-1"}}><label style={{color:"#9A7540",fontSize:12,display:"block",marginBottom:5}}>Description</label><textarea className="inp" value={expoForm.description} onChange={e=>setExpoForm(f=>({...f,description:e.target.value}))}/></div>
+              </div>
+              <div style={{display:"flex",gap:10,marginTop:16}}>
+                <button className="btn btn-p" onClick={addExpo} disabled={saving}>{saving?<Spin size={14}/>:"Create Exhibition"}</button>
+                <button className="btn btn-g" onClick={()=>setAddingExpo(false)}>Cancel</button>
+              </div>
+            </div>
+          )}
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {expos.map(e=>(
+              <div key={e.id} className="card" style={{padding:"14px 18px",display:"flex",alignItems:"center",gap:14}}>
+                <Badge status={e.status}/>
+                <div style={{flex:1}}>
+                  <p style={{fontWeight:600,color:"#E8DCC8",fontSize:14}}>{e.title}</p>
+                  <p style={{color:"#7D5C28",fontSize:12}}>{e.date} · {e.location} · {e.exhibitors} exhibitors</p>
+                </div>
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  <select className="inp" value={e.status} onChange={async(ev)=>{await updateDoc("exhibitions",e.id,{status:ev.target.value}).catch(()=>{});setExpos(es=>es.map(x=>x.id===e.id?{...x,status:ev.target.value}:x))}} style={{fontSize:12,padding:"5px 8px",width:110}}>
+                    {["upcoming","live","completed"].map(s=><option key={s}>{s}</option>)}
+                  </select>
+                  <button className="btn btn-d" style={{fontSize:12,padding:"6px 10px"}} onClick={()=>deleteExpo(e.id)}><Icon name="trash" size={13}/></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loading&&tab==="marketplace"&&(
+        <div>
+          <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:18,marginBottom:16}}>Marketplace Listings ({marketplace.length})</h2>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {marketplace.map(l=>(
+              <div key={l.id} className="card" style={{padding:"14px 18px",display:"flex",alignItems:"center",gap:14}}>
+                <div style={{flex:1}}>
+                  <p style={{fontWeight:600,color:"#E8DCC8",fontSize:14}}>{l.title}</p>
+                  <p style={{color:"#7D5C28",fontSize:12}}>{l.seller} · {l.category} · {l.price}</p>
+                </div>
+                <button className="btn btn-d" style={{fontSize:12,padding:"6px 10px"}} onClick={async()=>{await deleteDoc("marketplace",l.id).catch(()=>{});setMarketplace(m=>m.filter(x=>x.id!==l.id))}}><Icon name="trash" size={13}/></button>
+              </div>
+            ))}
+            {marketplace.length===0&&<p style={{color:"#614518",fontSize:13}}>No listings yet.</p>}
+          </div>
+        </div>
+      )}
+
+      {!loading&&tab==="meetings"&&(
+        <div>
+          <h2 style={{fontWeight:600,color:"#E8DCC8",fontSize:18,marginBottom:16}}>All Meetings ({meetings.length})</h2>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {meetings.map(m=>(
+              <div key={m.id} className="card" style={{padding:"14px 18px",display:"flex",alignItems:"center",gap:14}}>
+                <Av name={m.userName||"?"} color="#7c3d12" size={36}/>
+                <div style={{flex:1}}>
+                  <p style={{fontWeight:600,color:"#E8DCC8",fontSize:14}}>{m.userName} → {m.with}</p>
+                  <p style={{color:"#7D5C28",fontSize:12}}>{m.date}{m.time&&` at ${m.time}`} · {m.topic||"Business Meeting"}</p>
+                </div>
+                <button className="btn btn-d" style={{fontSize:12,padding:"6px 10px"}} onClick={async()=>{await deleteDoc("meetings",m.id).catch(()=>{});setMeetings(ms=>ms.filter(x=>x.id!==m.id))}}><Icon name="trash" size={13}/></button>
+              </div>
+            ))}
+            {meetings.length===0&&<p style={{color:"#614518",fontSize:13}}>No meetings yet.</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── ABOUT ────────────────────────────────────────────────────
+function AboutPage({ setPage }) {
+  const TEAM = [
+    {name:"Alem Tadesse",role:"CEO & Co-Founder",origin:"🇪🇹",bio:"Former trade finance director at Bank of Abyssinia. 15 years in export facilitation."},
+    {name:"Fatima Osei",role:"CTO & Co-Founder",origin:"🇬🇭",bio:"Ex-Google engineer. Built payment infrastructure across 12 African markets."},
+    {name:"David Kamau",role:"VP Operations",origin:"🇰🇪",bio:"Led logistics operations for Pan-Africa Logistics Hub."},
+    {name:"Sara Haile",role:"Head of Partnerships",origin:"🇪🇹",bio:"Former liaison at Ethiopian Chamber of Commerce. Expert in AfCFTA."},
+  ]
+  return (
+    <div style={{maxWidth:1100,margin:"0 auto",padding:"80px 24px 60px"}}>
+      <div style={{textAlign:"center",maxWidth:600,margin:"0 auto 60px"}}>
+        <Tag>Our Story</Tag>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:800,color:"#f5f0e8",margin:"12px 0 14px"}}>Built for Africa, <span className="tg">by Africans</span></h1>
+        <p style={{color:"#9A7540",fontSize:15,lineHeight:1.8}}>AfriExpo was born from a simple observation: Africa has world-class products and talented exporters, but lacks the digital infrastructure to connect them with global buyers.</p>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:14,marginBottom:60}}>
+        {[["globe","Our Mission","To become the operating system for African trade — connecting 54 nations through a unified digital marketplace, financing, and logistics ecosystem."],["shield","Our Values","African-first. Inclusive. Transparent. We believe African businesses deserve world-class tools built for African contexts."],["chart","Our Vision","A continent where any African business — from a Tigray honey farmer to a Lagos tech startup — can access global markets from their phone."]].map(([ic,title,desc])=>(
+          <div key={title} className="card" style={{padding:22}}>
+            <div style={{width:36,height:36,borderRadius:9,background:"rgba(46,24,0,.6)",border:"1px solid rgba(138,73,0,.3)",display:"flex",alignItems:"center",justifyContent:"center",color:"#FF9A1A",marginBottom:14}}><Icon name={ic} size={17}/></div>
+            <h3 style={{fontWeight:600,color:"#E8DCC8",marginBottom:8,fontSize:15}}>{title}</h3>
+            <p style={{color:"#9A7540",fontSize:13,lineHeight:1.7}}>{desc}</p>
+          </div>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:14,marginBottom:60}}>
+        {TEAM.map(m=>(
+          <div key={m.name} className="card" style={{padding:20,textAlign:"center"}}>
+            <div style={{width:60,height:60,borderRadius:30,background:"linear-gradient(135deg,#92400e,#7c2d12)",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 12px",color:"#fff",fontWeight:700,fontSize:18}}>
+              {m.name.split(" ").map(n=>n[0]).join("")}
+            </div>
+            <p style={{fontWeight:600,color:"#E8DCC8",fontSize:14}}>{m.name}</p>
+            <p style={{color:"#FF9A1A",fontSize:12,marginBottom:2}}>{m.role}</p>
+            <p style={{color:"#7D5C28",fontSize:13,marginBottom:8}}>{m.origin}</p>
+            <p style={{color:"#9A7540",fontSize:12,lineHeight:1.6}}>{m.bio}</p>
+          </div>
+        ))}
+      </div>
+      <div className="card" style={{padding:48,textAlign:"center"}}>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700,color:"#f5f0e8",marginBottom:10}}>Join the Movement</h2>
+        <p style={{color:"#9A7540",marginBottom:24,maxWidth:400,margin:"0 auto 24px"}}>Whether you're an exporter, buyer, investor, or partner — there's a place for you in the AfriExpo ecosystem.</p>
+        <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+          <button className="btn btn-p" onClick={()=>setPage("dashboard")} style={{fontSize:15}}>Start for Free →</button>
+          <button className="btn btn-o" onClick={()=>setPage("matchmaking")} style={{fontSize:15}}>Find Trade Partners</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── APP ROOT ─────────────────────────────────────────────────
+function App() {
+  const [user, setUser] = useState(null)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [page, setPage] = useState("home")
+  const [showNotif, setShowNotif] = useState(false)
+  const [notifCount, setNotifCount] = useState(0)
+
+  // Parse page params (e.g. "expo-abc123", "user-abc123")
+  const pageBase = page.startsWith("expo-")?"expo-detail":page.startsWith("user-")?"user-detail":page
+  const pageId = page.startsWith("expo-")?page.slice(5):page.startsWith("user-")?page.slice(5):null
+
+  useEffect(()=>{
+    const a = auth()
+    if (!a) { setAuthChecked(true); return }
+    const unsub = a.onAuthStateChanged(async fbUser => {
+      if (fbUser) {
+        try {
+          const snap = await db()?.collection("users").doc(fbUser.uid).get()
+          const p = snap?.exists ? snap.data() : {}
+          setUser({ id:fbUser.uid, name:p.name||fbUser.displayName||fbUser.email?.split("@")[0]||"User", email:fbUser.email, role:p.role||"visitor", company:p.company||"", avatar:p.avatar||(p.name||"U").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase(), verified:p.verified||false, country:p.country||"", bio:p.bio||"", category:p.category||"", products:p.products||[], tags:p.tags||[], description:p.description||"", seeking:p.seeking||"" })
+        } catch { setUser(null) }
+      } else { setUser(null) }
+      setAuthChecked(true)
+    })
+    return ()=>unsub()
+  },[])
+
+  // Count unread notifications
+  useEffect(()=>{
+    if (!user?.id||user.isGuest) return
+    const unsub = onSnap("notifications",[{type:"where",f:"userId",op:"==",v:user.id},{type:"where",f:"read",op:"==",v:false}], docs=>setNotifCount(docs.length))
+    return ()=>unsub?.()
+  },[user?.id])
+
+  const handleAuth = (u) => {
+    setUser(u)
+    setPage(u.role==="admin"?"admin":"home")
+  }
+  const handleLogout = async () => {
+    try { await auth()?.signOut() } catch {}
+    setUser(null); setPage("home")
+  }
+
+  if (!authChecked) return (
+    <div style={{minHeight:"100vh",background:"#0a0806",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+      <style>{S}</style>
+      <div style={{width:48,height:48,borderRadius:14,background:"linear-gradient(135deg,#FF9A1A,#E67E00)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+        <span style={{color:"#0a0806",fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:22}}>A</span>
+      </div>
+      <Spin size={20}/>
+      <p style={{color:"#7D5C28",fontSize:13}}>Loading AfriExpo…</p>
+    </div>
+  )
+
+  if (!user) return <><style>{S}</style><AuthPage onAuth={handleAuth}/></>
+
+  const renderPage = () => {
+    switch(pageBase) {
+      case "home": return <HomePage setPage={setPage} user={user}/>
+      case "exhibitions": return <ExhibitionsPage setPage={setPage}/>
+      case "expo-detail": return <ExpoDetailPage expoId={pageId} setPage={setPage}/>
+      case "exhibitors": return <ExhibitorsPage setPage={setPage}/>
+      case "user-detail": return <UserDetailPage userId={pageId} setPage={setPage}/>
+      case "marketplace": return <MarketplacePage user={user} setPage={setPage}/>
+      case "financing": return <FinancingPage user={user}/>
+      case "logistics": return <LogisticsPage/>
+      case "matchmaking": return <MatchmakingPage user={user}/>
+      case "messages": return <MessagesPage user={user}/>
+      case "dashboard": return <DashboardPage user={user} setPage={setPage}/>
+      case "admin": return user.role==="admin"?<AdminPage user={user}/>:<HomePage setPage={setPage} user={user}/>
+      case "about": return <AboutPage setPage={setPage}/>
+      default: return <HomePage setPage={setPage} user={user}/>
+    }
+  }
+
+  return (
+    <div style={{minHeight:"100vh",background:"#0a0806"}}>
+      <style>{S}</style>
+      <Navbar page={pageBase} setPage={setPage} user={user} onLogout={handleLogout} notifCount={notifCount} setShowNotif={setShowNotif}/>
+      {showNotif&&<NotifPanel user={user} onClose={()=>setShowNotif(false)}/>}
+      {showNotif&&<div style={{position:"fixed",inset:0,zIndex:55}} onClick={()=>setShowNotif(false)}/>}
+      <main>{renderPage()}</main>
+      {!["messages"].includes(pageBase)&&(
+        <footer style={{background:"rgba(10,8,6,.95)",borderTop:"1px solid rgba(69,48,13,.3)",padding:"40px 24px 24px",marginTop:0}}>
+          <div style={{maxWidth:1280,margin:"0 auto"}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:28,marginBottom:32}}>
+              <div>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+                  <div style={{width:28,height:28,borderRadius:8,background:"linear-gradient(135deg,#FF9A1A,#E67E00)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <span style={{color:"#0a0806",fontFamily:"'Playfair Display',serif",fontWeight:800,fontSize:14}}>A</span>
+                  </div>
+                  <span style={{fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:16,color:"#FFD59A"}}>AfriExpo</span>
+                </div>
+                <p style={{color:"#7D5C28",fontSize:12,lineHeight:1.7}}>Africa's Digital Hub for Trade & Commerce. Connecting 42+ countries.</p>
+              </div>
+              {[["Platform",["exhibitions","exhibitors","marketplace","matchmaking"]],["Services",["financing","logistics","messages","about"]],["Legal",["about"]]].map(([title,links])=>(
+                <div key={title}>
+                  <p style={{color:"#E8DCC8",fontWeight:600,fontSize:13,marginBottom:10}}>{title}</p>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {links.map(l=>(
+                      <button key={l} onClick={()=>setPage(l)} style={{color:"#7D5C28",fontSize:12,background:"none",border:"none",cursor:"pointer",textAlign:"left",padding:0}}
+                        onMouseEnter={e=>e.target.style.color="#FF9A1A"} onMouseLeave={e=>e.target.style.color="#7D5C28"}>
+                        {l.charAt(0).toUpperCase()+l.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="pline" style={{marginBottom:16}}/>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+              <p style={{color:"#614518",fontSize:11}}>© 2025 AfriExpo. Built for Africa, by Africans.</p>
+              <p style={{color:"#614518",fontSize:11}}>Privacy Policy · Terms of Service · AfCFTA Compliant</p>
+            </div>
+          </div>
+        </footer>
+      )}
+    </div>
+  )
+}
+
+function mount() {
+  const el = document.getElementById("root")
+  if (el&&!el._m) { el._m=true; ReactDOM.createRoot(el).render(React.createElement(App)) }
+}
+if (window._fbReady) { mount() } else {
+  window.addEventListener("fb-ready",function h(){ window.removeEventListener("fb-ready",h); mount() })
+  setTimeout(mount,200)
+}
+</script>
+</body>
+</html>
