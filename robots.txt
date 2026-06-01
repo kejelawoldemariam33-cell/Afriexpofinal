@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://afriexpofinal.vercel.app/sitemap.xml
